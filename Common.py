@@ -5,9 +5,12 @@ def Enum(*sequential, **named):
     enums = dict(zip(sequential, range(len(sequential))), **named)
     return type('Enum', (), enums)
 
-def Error(line, errorMsg):
-	print "Error on line %s:\n\t%s\n%s" % (line.Number, line.String, errorMsg)
-	sys.exit(0)
+def Error(line, errorMsg = ""):
+	if type(line) is str:
+		print line
+	else:
+		print "Error in %s on line %s:\n\t%s\n%s" % (line.FileName, line.Number, line.String, errorMsg)
+	sys.exit(1)
 
 def FileToList(filePath):
 	if os.path.isfile(filePath):

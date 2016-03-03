@@ -1,14 +1,31 @@
 import Common
 
+class MifLine():
+
+	def __init__(self, data, address = None, comment = "", instruction = None):
+		self.Address = address
+		self.Data = data
+		self.Comment = comment
+		self.Instruction = instruction
+
+	def __str__(self):
+		string = ""
+		if self.Address == None:
+			Common.Error("MifLine does not have Address")
+		elif type(self.Address) is str:
+			string += self.Address.replace("0x",'').zfill(4)
+		else:
+			string += Common.NumToHexString(self.Address, 4)
+	 	string += " : %s;" % self.Data.zfill(8)
+	 	if self.Comment:
+	 		string += " %% %s %%" % self.Comment
+
+	 	return string
+
+	def __repr__(self):
+	 	return str(self)
+
 class Mif():
-	OutputFile = ""
-	Headers = []
-
-	Width = 0
-	Depth = 0
-	DataRadix = ""
-
-	Data = []
 
 	def __init__(self, output, width, depth, headers = []):
 		self.OutputFile = output
@@ -17,16 +34,18 @@ class Mif():
 		#self.DataRadix = dataRadix
 		self.DataRadix = "HEX"
 		self.Headers = headers
+		self.Data = []
 
-	def AddData(self, dataList):
-		self.Data += dataList
+	def AddData(self, data):
+		if data:
+			self.Data += data
 		return self
 
 	def Write(self):
 		with open(self.OutputFile, "w+") as _file:
 			_file.seek(0)
 			_file.truncate() # Clears out the file if it exists
-			_file.write("-- Assembled for RISC521 by Connor Goldberg\n")
+			_file.write("-- Assembled for RISC_721 by Connor Goldberg\n")
 
 			for line in self.Headers:
 				_file.write("-- %s\n" % line)
@@ -39,29 +58,12 @@ class Mif():
 			_file.write("\n")
 
 			counter = 0
-			for data,comment in self.Data:
-				if comment.upper().startswith(".SKIP"):
-					counter += data
-					_file.write("-- Skipping 0x%s addresses\n" % Common.NumToHexString(data))
-					continue
-				elif comment.upper().startswith(".INSERT"):
-					_file.write("%s : %s; %% %s %%\n" % (data[0], data[1], comment))
-					continue
-				elif comment.upper().startswith(".CONSTANT"):
-					_file.write("%s : %s;\n" % (data[0], data[1]))
-					continue
-				line = Common.NumToHexString(counter, 2)
-				line += " : %s;" % data
-
-				if comment:
-					line += " %% %s %%\n" % comment
+			for mifLine in self.Data:
+				if mifLine.Address != None:
+					_file.write(str(mifLine)+'\n')
 				else:
-					line += "\n"
-
-				_file.write(line)
-
-				counter+=1
+					mifLine.Address = counter
+					_file.write(str(mifLine)+'\n')
+					counter+=1
 
 			_file.write("\nEND;\n")
-
-		return self

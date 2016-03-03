@@ -1,15 +1,15 @@
-from collections import OrderedDict
 import os
+from collections import OrderedDict
 import re
 
 import Common
-import Instruction
+import Instructions
+import Mif
 
 class Line:
-	Number = -1
-	String = ""
 
-	def __init__(self, number, string):
+	def __init__(self, fileName, number, string):
+		self.FileName = fileName
 		self.Number = number
 		self.String = string
 
@@ -21,21 +21,22 @@ class Line:
 
 class Assembly:
 
-	Original = []
-	WithoutComments = []
-
-	Code = []
-	ConstantsLines = []
-	DirectivesLines = []
-
-	Constants = []
-	Directives = {}
-	Labels = {}
-
-	Instructions = []
+	InterruptVectorTable = {}
+	AddressSpaceSize = 65535
+	VectorTableStartAddress = 0b1111111111111000
 
 	def __init__(self):
-		pass
+		self.Original = []
+		self.WithoutComments = []
+
+		self.Code = []
+		self.ConstantsLines = []
+		self.DirectivesLines = []
+
+		self.Constants = OrderedDict()
+		self.Directives = {}
+
+		self.Instructions = []
 
 	def __str__(self):
 		string = ""
@@ -68,98 +69,100 @@ class Assembly:
 	def DecodeConstants(self):
 		for constant in self.ConstantsLines:
 			split = constant.String.split()
-			if len(split) != 2:
+			if len(split) != 3:
 				Common.Error(constant, "Wrong syntax for constant")
-			elif not split[0].startswith("0x") or not split[1].startswith("0x"):
-				Common.Error(constant, "Constants must be hex")
 			else:
-				self.Constants.append((split[0],split[1]))
+				self.Constants[Common.NumToHexString(int(split[0],0))] = Common.NumToHexString(int(split[2],0))
 
 	def DecodeDirectives(self):
 		for directive in self.DirectivesLines:
 			split = directive.String.split()
-			if len(split) != 2:
+			if len(split) != 3:
 				Common.Error(directive, "Wrong syntax for directive")
 			else:
-				self.Directives[split[0]] = split[1]
+				self.Directives[split[0]] = "0x"+Common.NumToHexString(int(split[2],0))
 
 	def DecodeCode(self):
 		newCode = []
 		for line in self.Code:
 			for directive, value in self.Directives.iteritems():
-				extracted = [piece for piece in re.split("\[|\]| |,|\t", line.String) if piece.startswith('$')] # Split the instruction by spaces, commas, and brackets
-				toBeReplaced = "$" + directive
-				if toBeReplaced in extracted:
-					line.String = line.String.replace(toBeReplaced, self.Directives[directive])
-				if line.String.endswith(':'):
-					Common.Error(line, "Label must be on the same line as an instruction")
-			self.Instructions.append(Instruction.Instruction(line))
+				extracted = [piece for piece in re.split("\[|\]| |,|\t|\+", line.String)] # Split the instruction by spaces, commas, and brackets
+				if directive in extracted:
+					line.String = line.String.replace(directive, value)
+			if line.String.endswith(':'):
+				Common.Error(line, "Label must be on the same line as an instruction")
+			self.Instructions.append(Instructions.DecodeLine(line))
 			newCode.append(line)
 		self.Code = newCode
 
-	def ResolveLabels(self):
-		addressCounter = 0
-		# Pass 1, get the address associated with each label
-		for instruction in self.Instructions:
-			if instruction.LabelWord:
-				instruction.LabelAddress = addressCounter
-				self.Labels[instruction.LabelWord] = instruction.LabelAddress
-			addressCounter += instruction.InstructionList[instruction.Mnemonic][1]
-		# Pass 2, resolve the label
-		for instruction in self.Instructions:
-			if instruction.NeedsLabelLookup:
-				if instruction.LabelOffset[1:] in self.Labels.keys():
-					instruction.Offset = self.Labels[instruction.LabelOffset[1:]]
+	@staticmethod
+	def ResolveAddresses(instructions, startAddress = 0):
+		addressCounter = startAddress
+		labelTable = {}
+		for instruction in instructions:
+			if instruction.Label != None:
+				if instruction.Label.startswith("ISR_"):
+					num = instruction.Label.replace("ISR_",'')
+					if not num.isdigit():
+						Common.Error(instruction.Line, "ISR must be followed by a number")
+					elif Assembly.VectorTableStartAddress+int(num) > Assembly.AddressSpaceSize:
+						Common.Error(instruction.Line, "ISR value is too large. Must not exceed: %s" % str(Assembly.AddressSpaceSize-Assembly.VectorTableStartAddress))
+					if int(num) in Assembly.InterruptVectorTable.keys():
+						Common.Error(instruction.Line, "Found previous declaration of ISR: %s" % instruction.Label)
+					Assembly.InterruptVectorTable[int(num)] = addressCounter
 				else:
-					Common.Error(instruction.Line, "Could not find matching label for: %s" % instruction.LabelOffset)
+					if instruction.Label in labelTable.keys():
+						Common.Error(instruction.Line, "Found previous declaration of label: %s" % instruction.Label)
+					labelTable[instruction.Label] = addressCounter
+			addressCounter += 1
+		for instruction in instructions:
+			if instruction.NeedsLabelAddress:
+				if instruction.LabelOperand in labelTable.keys():
+					instruction.Address = labelTable[instruction.LabelOperand]
+					instruction.Assemble()
+				else:
+					Common.Error(instruction.Line, "Could not find destination label for: %s" % instruction.LabelOperand)
 
 class Parser:
 
-	AssemblyFilePath = ""
-	MyAssembly = Assembly()
-
 	def __init__(self, assemblyFilePath):
 		self.AssemblyFilePath = assemblyFilePath
+		self.Assembly = Assembly()
 
 	def FileToLines(self, assemblyFilePath):
 		if os.path.isfile(assemblyFilePath):
 			with open(assemblyFilePath) as _file:
 				lineCount = 1
 				for line in _file:
-					self.MyAssembly.Original.append(Line(lineCount, line.strip()))
+					self.Assembly.Original.append(Line(os.path.basename(assemblyFilePath), lineCount, line.strip()))
 					lineCount+=1
 		else: 
 			return []
 
 	def GetAssemblyData(self):
 		lines = []
-
-		for instruction in self.MyAssembly.Instructions:
-			if instruction.SkipNumber:
-				data = instruction.SkipNumber
-			elif instruction.InsertAddress >= 0:
-				data = (Common.NumToHexString(instruction.InsertAddress), Common.NumToHexString(instruction.InsertValue),4)
-			else:
-				data = Common.NumToHexString(int(instruction.MachineCode, 2), 4)	
-			comment = instruction.Line.String
-			lines.append((data,comment))
-
-			if instruction.Offset != None:
-				data = Common.NumToHexString(instruction.Offset, 4);
-				comment = ""
-				lines.append((data,comment))
-
+		for instruction in self.Assembly.Instructions:
+			data = Common.NumToHexString(int(instruction.MachineCode, 2), 8)
+			comment = instruction.Line.String.replace('\t','')
+			lines.append(Mif.MifLine(data=data, comment=comment, instruction=instruction))
 		return lines
 
 	def GetConstantsData(self):
 		lines = []
+		for address, data in self.Assembly.Constants.iteritems():
+			lines.append(Mif.MifLine(data=data, address=address))
+		return lines
 
-		for constant in self.MyAssembly.Constants:
-			lines.append(((constant[0][2:], constant[1][2:]), ".CONSTANT %s %s" % (constant[0], constant[1])))
+	@staticmethod
+	def GetInterruptVectorTable():
+		lines = []
+		for num, dest in Assembly.InterruptVectorTable.iteritems():
+			dest = Common.NumToHexString(dest, 8)
+			lines.append(Mif.MifLine(address=Assembly.VectorTableStartAddress+num, data=dest, comment="ISR_%i" % num))
 		return lines
 
 	def RemoveComments(self):
-		pass1 =  [line for line in self.MyAssembly.Original if not line.String.startswith(";") and not line.String.startswith("//")] # Removes all lines starting with semicolons
+		pass1 =  [line for line in self.Assembly.Original if not line.String.startswith(";") and not line.String.startswith("//")] # Removes all lines starting with semicolons
 		pass2 = []
 		for line in pass1:
 			if ';' in line.String:
@@ -174,7 +177,7 @@ class Parser:
 		category = Common.Enum("Directives", "Constants", "Code")
 		myCategory = None
 
-		for line in self.MyAssembly.WithoutComments:
+		for line in self.Assembly.WithoutComments:
 			if line.String.startswith('.directives'):
 				myCategory = category.Directives
 			elif line.String.startswith('.constants'):
@@ -185,18 +188,19 @@ class Parser:
 				myCategory = None
 			else:
 				if myCategory == category.Directives:
-					self.MyAssembly.DirectivesLines.append(line)
+					self.Assembly.DirectivesLines.append(line)
 				elif myCategory == category.Constants:
-					self.MyAssembly.ConstantsLines.append(line)
+					self.Assembly.ConstantsLines.append(line)
 				elif myCategory == category.Code:
-					self.MyAssembly.Code.append(line)
+					if "=" in line.String:
+						self.Assembly.DirectivesLines.append(line)
+					else:
+						self.Assembly.Code.append(line)
 				else:
 					Common.Error(line, "Line \"%s\" belongs to unknown section" % line.String)
 
 	def Parse(self):
-
 		self.FileToLines(self.AssemblyFilePath)
-		self.MyAssembly.WithoutComments = self.RemoveComments()
+		self.Assembly.WithoutComments = self.RemoveComments()
 		self.Separate()
-		self.MyAssembly.Decode()
-		self.MyAssembly.ResolveLabels()
+		self.Assembly.Decode()
