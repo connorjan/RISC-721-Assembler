@@ -1,3 +1,2 @@
-#RISC-521 Assembler
-
-Assembler for my custom RISC521 architecture
+# RISC-721-Assembler
+Custom assembler for the custom RISC_721 Architecture
