@@ -19,9 +19,9 @@ def DecodeLine(line):
 		instruction = DataTransfer(line, mnemonic, opCode)
 	elif (opCode == 0x5 or opCode == 0x6 or opCode == 0x7):
 		instruction = FlowControl(line, mnemonic, opCode)
-	elif (0x8 <= opCode and opCode <= 0x12) or (0x14 <= opCode and opCode <= 0x17):
+	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x14):
 		instruction = LogicUnit(line, mnemonic, opCode)
-	elif (opCode == 0x13):
+	elif (opCode == 0x10):
 		instruction = RotateShift(line, mnemonic, opCode)
 	elif (opCode == 0xFF):
 		instruction = Emulated(line, mnemonic, opCode)
@@ -38,7 +38,7 @@ class LoadStore(InstructionBase.InstructionBase_):
 
 	def __init__(self, line, mnemonic, opCode):
 		super(LoadStore, self).__init__(line, mnemonic, opCode)
-		self.Ri = 0
+		self.Ri = None
 		self.Rj = None
 		self.Control = None
 		self.Address = 0
@@ -156,6 +156,7 @@ class LogicUnit(InstructionBase.InstructionBase_):
 		self.Ri = None
 		self.Rj = 0
 		self.Rk = None
+		self.Control = None
 		self.Constant = None
 
 	def Decode(self):
@@ -169,17 +170,25 @@ class LogicUnit(InstructionBase.InstructionBase_):
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Rj)
 			self.GetConstantOperand(self.SplitLine[2])
-		elif self.Mnemonic == "ADDC" or self.Mnemonic == "SUBC":
-			if len(self.SplitLine) != 4:
-				Common.Error(self.Line, "Wrong number of operands")
-			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
-			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
-			self.GetConstantOperand(self.SplitLine[3])
+			self.Control = 1
 		elif self.Mnemonic == "NOT":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
+		elif self.Mnemonic == "NOTC":
+			if len(self.SplitLine) != 3:
+				Common.Error(self.Line, "Wrong number of operands")
+			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
+			self.GetConstantOperand(self.SplitLine[2])
+			self.Control = 1
+		elif self.Mnemonic == "ADDC" or self.Mnemonic == "SUBC" or self.Mnemonic == "ANDC" or self.Mnemonic == "BICC" or self.Mnemonic == "ORC" or self.Mnemonic == "XORC":
+			if len(self.SplitLine) != 4:
+				Common.Error(self.Line, "Wrong number of operands")
+			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
+			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
+			self.GetConstantOperand(self.SplitLine[3])
+			self.Control = 1
 		else:
 			if len(self.SplitLine) != 4:
 				Common.Error(self.Line, "Wrong number of operands")
@@ -198,8 +207,11 @@ class LogicUnit(InstructionBase.InstructionBase_):
 		if (self.Rk != None):
 			self.MachineCode += Common.NumToBinaryString(self.Rk, 5)
 			self.MachineCode += Common.NumToBinaryString(0, 12)
-		elif (self.Constant != None):
-			self.MachineCode += Common.NumToBinaryString(self.Constant, 17)
+		elif (self.Constant != None and self.Control != None):
+			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
+			self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
+		else:
+			self.MachineCode += Common.NumToBinaryString(0, 17)
 		return self
 
 class RotateShift(InstructionBase.InstructionBase_):
@@ -247,6 +259,7 @@ class Emulated(InstructionBase.InstructionBase_):
 		self.Ri = 0
 		self.Rj = 0
 		self.Rk = None
+		self.Control = 1
 		self.Constant = None
 
 	def Decode(self):
@@ -256,6 +269,7 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.OpCode = InstructionBase.InstructionList["ADDC"]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.Rj = self.Ri
+			self.Control = 1
 			self.Constant = 1
 		elif self.Mnemonic == "DEC":
 			if len(self.SplitLine) != 2:
@@ -263,6 +277,7 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.OpCode = InstructionBase.InstructionList["SUBC"]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.Rj = self.Ri
+			self.Control = 1
 			self.Constant = 1
 		elif self.Mnemonic == "CLR":
 			if len(self.SplitLine) != 2:
@@ -291,7 +306,8 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.MachineCode += Common.NumToBinaryString(self.Rk, 5)
 			self.MachineCode += Common.NumToBinaryString(0, 12)
 		elif (self.Constant != None):
-			self.MachineCode += Common.NumToBinaryString(self.Constant, 17)
+			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
+			self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
 		else:
 			self.MachineCode += Common.NumToBinaryString(0, 17)
 		return self

@@ -47,7 +47,7 @@ class InstructionBase_(object):
 				self.Address = int(operand[1],0)
 				self.GetRegisterOperand(operand[0],self.RegisterField.Rj)
 			else:
-				Common.Error(self.Line, "Invalid operand: %s" % arg)
+				Common.Error(self.Line, "Invalid operand for address: %s" % arg)
 		else:
 			self.Control = 1
 			if operand.startswith("0x"):
@@ -66,7 +66,7 @@ class InstructionBase_(object):
 
 	def GetRegisterOperand(self, operand, registerField):
 		if operand[0] != 'R' or not operand[1:].isdigit():
-			Common.Error(self.Line, "Invalid operand: %s" % operand)
+			Common.Error(self.Line, "Invalid operand for register: %s" % operand)
 		elif registerField == self.RegisterField.Ri:
 			self.Ri = int(operand[1:])
 		elif registerField == self.RegisterField.Rj:
@@ -100,27 +100,32 @@ InstructionList = {	"LD" 	: 0x00,
 					"RET"	: 0x07,
 					"RETI"	: 0x07,
 					"ADD"	: 0x08,
-					"ADDC"	: 0x09,
-					"SUB"	: 0x0A,
-					"SUBC"	: 0x0B,
-					"CMP"	: 0x0C,
-					"CMPC"	: 0x0D,
-					"NOT" 	: 0x0E,
-					"AND"	: 0x0F,
-					"BIC"	: 0x10,
-					"OR"	: 0x11,
-					"XOR"	: 0x12,
-					"SRL"	: 0x13,
-					"SLL"	: 0x13,
-					"SRA"	: 0x13,
-					"RTR"	: 0x13,
-					"RTL"	: 0x13,
-					"RRC"	: 0x13,
-					"RLC"	: 0x13,
-					"FA"	: 0x14,
-					"FS"	: 0x15,
-					"FM"	: 0x16,
-					"FD"	: 0x17,
+					"ADDC"	: 0x08,
+					"SUB"	: 0x09,
+					"SUBC"	: 0x09,
+					"CMP"	: 0x0A,
+					"CMPC"	: 0x0A,
+					"NOT" 	: 0x0B,
+					"NOTC" 	: 0x0B,
+					"AND"	: 0x0C,
+					"ANDC"	: 0x0C,
+					"BIC"	: 0x0D,
+					"BICC"	: 0x0D,
+					"OR"	: 0x0E,
+					"ORC"	: 0x0E,
+					"XOR"	: 0x0F,
+					"XORC"	: 0x0F,
+					"SRL"	: 0x10,
+					"SLL"	: 0x10,
+					"SRA"	: 0x10,
+					"RTR"	: 0x10,
+					"RTL"	: 0x10,
+					"RRC"	: 0x10,
+					"RLC"	: 0x10,
+					"FA"	: 0x11,
+					"FS"	: 0x12,
+					"FM"	: 0x13,
+					"FD"	: 0x14,
 
 					# Emulated instructions
 					"INC" 	: 0xFF,

@@ -30,7 +30,7 @@ def main(args):
 	myParser = Parser.Parser(assemblyFile)	
 	myParser.Parse()
 
-	Parser.Assembly.ResolveAddresses(myParser.Assembly.Instructions, 2)
+	Parser.Assembly.ResolveAddresses(myParser.Assembly.Instructions, 0)
 
 	programMif.AddData(myParser.GetAssemblyData()).Write()
 	dataMif.AddData(Parser.Parser.GetInterruptVectorTable()).AddData(myParser.GetConstantsData()).Write()
