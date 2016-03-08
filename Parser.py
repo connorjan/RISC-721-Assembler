@@ -95,39 +95,23 @@ class Assembly:
 			newCode.append(line)
 		self.Code = newCode
 
-	@staticmethod
-	def ResolveAddresses(instructions, startAddress = 0):
-		addressCounter = startAddress
-		labelTable = {}
-		for instruction in instructions:
-			if instruction.Label != None:
-				if instruction.Label.startswith("ISR_"):
-					num = instruction.Label.replace("ISR_",'')
-					if not num.isdigit():
-						Common.Error(instruction.Line, "ISR must be followed by a number")
-					elif Assembly.VectorTableStartAddress+int(num) > Assembly.AddressSpaceSize:
-						Common.Error(instruction.Line, "ISR value is too large. Must not exceed: %s" % str(Assembly.AddressSpaceSize-Assembly.VectorTableStartAddress))
-					if int(num) in Assembly.InterruptVectorTable.keys():
-						Common.Error(instruction.Line, "Found previous declaration of ISR: %s" % instruction.Label)
-					Assembly.InterruptVectorTable[int(num)] = addressCounter
-				else:
-					if instruction.Label in labelTable.keys():
-						Common.Error(instruction.Line, "Found previous declaration of label: %s" % instruction.Label)
-					labelTable[instruction.Label] = addressCounter
-			addressCounter += 1
-		for instruction in instructions:
-			if instruction.NeedsLabelAddress:
-				if instruction.LabelOperand in labelTable.keys():
-					instruction.Address = labelTable[instruction.LabelOperand]
-					instruction.Assemble()
-				else:
-					Common.Error(instruction.Line, "Could not find destination label for: %s" % instruction.LabelOperand)
-
 class Parser:
 
-	def __init__(self, assemblyFilePath):
+	def __init__(self, assemblyFilePath, canInclude = False, label=None):
 		self.AssemblyFilePath = assemblyFilePath
 		self.Assembly = Assembly()
+		self.CanInclude = canInclude
+		self.Label = label
+		self.LabelTable = {}
+		self.IncludeFiles = []
+		self.IncludeParsers = []
+
+	def Assemble(self):
+		for instruction in self.Assembly.Instructions:
+			instruction.Assemble()
+		for parser in self.IncludeParsers:
+			for instruction in parser.Assembly.Instructions:
+				instruction.Assemble()
 
 	def FileToLines(self, assemblyFilePath):
 		if os.path.isfile(assemblyFilePath):
@@ -141,10 +125,17 @@ class Parser:
 
 	def GetAssemblyData(self):
 		lines = []
-		for instruction in self.Assembly.Instructions:
-			data = Common.NumToHexString(int(instruction.MachineCode, 2), 8)
-			comment = instruction.Line.String.replace('\t','')
-			lines.append(Mif.MifLine(data=data, comment=comment, instruction=instruction))
+		allParsers = []
+		allParsers.append(self)
+		for parser in self.IncludeParsers:
+			allParsers.append(parser)
+		for parser in allParsers:
+			if parser.Label != None:
+				lines.append(Mif.MifLine(comment="----- %s -----" % parser.Label.String))
+			for instruction in parser.Assembly.Instructions:
+				data = Common.NumToHexString(int(instruction.MachineCode, 2), 8)
+				comment = instruction.Line.String.strip().replace('\t',' ')
+				lines.append(Mif.MifLine(data=data, comment=comment, instruction=instruction))
 		return lines
 
 	def GetConstantsData(self):
@@ -161,6 +152,18 @@ class Parser:
 			lines.append(Mif.MifLine(address=Assembly.VectorTableStartAddress+num, data=dest, comment="ISR_%i" % num))
 		return lines
 
+	def MergeIncludes(self):
+		addressCounter = len(self.Assembly.Instructions)
+		for parser in self.IncludeParsers:
+			label = parser.Label.String.split()[0]
+			if label in self.LabelTable.keys():
+				Common.Error(parser.Label, "Duplicate include label: %s" % parser.Label.String)
+			self.LabelTable[label] = addressCounter
+			addressCounter = parser.ResolveAddresses(startAddress=addressCounter)
+			parser.SetLabelAddresses()
+		self.ResolveAddresses()
+		self.SetLabelAddresses()
+
 	def RemoveComments(self):
 		pass1 =  [line for line in self.Assembly.Original if not line.String.startswith(";") and not line.String.startswith("//")] # Removes all lines starting with semicolons
 		pass2 = []
@@ -174,17 +177,21 @@ class Parser:
 		return [line for line in pass2 if line.String != ""] # Remove empty lines
 
 	def Separate(self):
-		category = Common.Enum("Directives", "Constants", "Code")
+		category = Common.Enum("Directives", "Constants", "Code", "Includes")
 		myCategory = None
 
 		for line in self.Assembly.WithoutComments:
-			if line.String.startswith('.directives'):
+			if line.String.strip() == ".directives":
 				myCategory = category.Directives
-			elif line.String.startswith('.constants'):
+			elif line.String.strip() == ".constants":
 				myCategory = category.Constants
-			elif line.String.startswith('.code'):
+			elif line.String.strip() == ".code":
 				myCategory = category.Code
-			elif line.String.startswith('.enddirectives') or line.String.startswith('.endconstants') or line.String.startswith('.endcode'):
+			elif line.String.strip() == ".includes":
+				if not self.CanInclude:
+					Common.Error(line, "Cannot recursively include files")
+				myCategory = category.Includes
+			elif line.String.startswith('.end'):
 				myCategory = None
 			else:
 				if myCategory == category.Directives:
@@ -196,6 +203,9 @@ class Parser:
 						self.Assembly.DirectivesLines.append(line)
 					else:
 						self.Assembly.Code.append(line)
+				elif myCategory == category.Includes:
+					if not line in self.IncludeFiles:
+						self.IncludeFiles.append(line)
 				else:
 					Common.Error(line, "Line \"%s\" belongs to unknown section" % line.String)
 
@@ -204,3 +214,48 @@ class Parser:
 		self.Assembly.WithoutComments = self.RemoveComments()
 		self.Separate()
 		self.Assembly.Decode()
+		if self.CanInclude:
+			self.ParseIncludes()
+			self.MergeIncludes()
+			self.Assemble()
+
+	def ParseIncludes(self):
+		for include in self.IncludeFiles:
+			split = include.String.split()
+			if len(split) != 3:
+				Common.Error(constant, "Wrong syntax for include")
+			filePath = os.path.abspath(split[2])
+			if not os.path.isfile(filePath):
+				Common.Error(include, "Cannot find file: %s" % filePath)
+			includeParser = Parser(filePath, label=include)
+			includeParser.Parse()
+			self.IncludeParsers.append(includeParser)
+
+	def ResolveAddresses(self, startAddress = 0):
+		addressCounter = startAddress
+		for instruction in self.Assembly.Instructions:
+			if instruction.Label != None:
+				if instruction.Label.startswith("ISR_"):
+					num = instruction.Label.replace("ISR_",'')
+					if not num.isdigit():
+						Common.Error(instruction.Line, "ISR must be followed by a number")
+					elif Assembly.VectorTableStartAddress+int(num) > Assembly.AddressSpaceSize:
+						Common.Error(instruction.Line, "ISR value is too large. Must not exceed: %s" % str(Assembly.AddressSpaceSize-Assembly.VectorTableStartAddress))
+					if int(num) in Assembly.InterruptVectorTable.keys():
+						Common.Error(instruction.Line, "Found previous declaration of ISR: %s" % instruction.Label)
+					Assembly.InterruptVectorTable[int(num)] = addressCounter
+				else:
+					if instruction.Label in self.LabelTable.keys():
+						Common.Error(instruction.Line, "Found previous declaration of label: %s" % instruction.Label)
+					self.LabelTable[instruction.Label] = addressCounter
+			addressCounter += 1
+		return addressCounter
+
+	def SetLabelAddresses(self):
+		for instruction in self.Assembly.Instructions:
+			if instruction.NeedsLabelAddress:
+				if instruction.LabelOperand in self.LabelTable.keys():
+					instruction.Address = self.LabelTable[instruction.LabelOperand]
+				else:
+					Common.Error(instruction.Line, "Could not find destination label for: %s" % instruction.LabelOperand)
+		return self.Assembly.Instructions

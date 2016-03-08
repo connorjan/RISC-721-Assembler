@@ -2,7 +2,7 @@ import Common
 
 class MifLine():
 
-	def __init__(self, data, address = None, comment = "", instruction = None):
+	def __init__(self, data=None, address = None, comment = "", instruction = None):
 		self.Address = address
 		self.Data = data
 		self.Comment = comment
@@ -10,13 +10,13 @@ class MifLine():
 
 	def __str__(self):
 		string = ""
-		if self.Address == None:
-			Common.Error("MifLine does not have Address")
-		elif type(self.Address) is str:
-			string += self.Address.replace("0x",'').zfill(4)
-		else:
-			string += Common.NumToHexString(self.Address, 4)
-	 	string += " : %s;" % self.Data.zfill(8)
+		if self.Address != None:
+			if type(self.Address) is str:
+				string += self.Address.replace("0x",'').zfill(4)
+			else:
+				string += Common.NumToHexString(self.Address, 4)
+	 	if self.Data != None:
+	 		string += " : %s;" % self.Data.zfill(8)
 	 	if self.Comment:
 	 		string += " %% %s %%" % self.Comment
 
@@ -57,13 +57,16 @@ class Mif():
 			_file.write("\nCONTENT BEGIN\n")
 			_file.write("\n")
 
-			counter = 0
+			addressCounter = 0
 			for mifLine in self.Data:
-				if mifLine.Address != None:
+				if mifLine.Data == None:
+					_file.write(str(mifLine).strip()+'\n')
+				elif mifLine.Address != None:
 					_file.write(str(mifLine)+'\n')
+					addressCounter+=1
 				else:
-					mifLine.Address = counter
+					mifLine.Address = addressCounter
 					_file.write(str(mifLine)+'\n')
-					counter+=1
+					addressCounter+=1
 
 			_file.write("\nEND;\n")

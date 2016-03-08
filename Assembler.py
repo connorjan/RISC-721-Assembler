@@ -8,7 +8,7 @@ import Mif
 import Parser
 
 """
-Title: Assembler for RISC521
+Title: Assembler for RISC_721
 Author: Connor Goldberg
 """
 
@@ -27,10 +27,8 @@ def main(args):
 	programMif = Mif.Mif(programOutput, args["width"], args["depth"], ["Program memory for: %s" % assemblyFile])
 	dataMif = Mif.Mif(dataOutput, args["width"], args["depth"], ["Data memory for: %s" % assemblyFile])
 
-	myParser = Parser.Parser(assemblyFile)	
+	myParser = Parser.Parser(assemblyFile, canInclude=True)	
 	myParser.Parse()
-
-	Parser.Assembly.ResolveAddresses(myParser.Assembly.Instructions, 0)
 
 	programMif.AddData(myParser.GetAssemblyData()).Write()
 	dataMif.AddData(Parser.Parser.GetInterruptVectorTable()).AddData(myParser.GetConstantsData()).Write()

@@ -29,10 +29,7 @@ def DecodeLine(line):
 		Common.Error(line, "Unknown opCode %i for instruction: %s" % (opCode, mnemonic))
 
 	instruction.Decode()
-	if instruction.NeedsLabelAddress:
-		return instruction
-	else:
-		return instruction.Assemble()
+	return instruction
 
 class LoadStore(InstructionBase.InstructionBase_):
 
