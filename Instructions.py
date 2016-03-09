@@ -126,7 +126,7 @@ class FlowControl(InstructionBase.InstructionBase_):
 				Common.Error(self.Line, "Wrong number of operands")
 			self.Address = 0
 			if self.Mnemonic == "RETI":
-				Control = 1
+				self.Control = 1
 		else:
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
