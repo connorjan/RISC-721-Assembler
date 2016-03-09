@@ -147,7 +147,7 @@ class Parser:
 					continue
 				else:
 					Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
-			lines.append(Mif.MifLine(data=data[0], address=address))
+			lines.append(Mif.MifLine(data=data[0], address=address, comment="%s:%s" % (data[1].FileName, data[1].Number)))
 			addresses[address] = data[0]
 		for parser in self.IncludeParsers:
 			for address, data in parser.Assembly.Constants.iteritems():
@@ -156,7 +156,7 @@ class Parser:
 						continue
 					else:
 						Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
-				lines.append(Mif.MifLine(data=data[0], address=address))
+				lines.append(Mif.MifLine(data=data[0], address=address, comment="%s:%s" % (data[1].FileName, data[1].Number)))
 				addresses[address] = data[0]
 		return lines
 

@@ -67,6 +67,7 @@ class DataTransfer(InstructionBase.InstructionBase_):
 		super(DataTransfer, self).__init__(line, mnemonic, opCode)
 		self.Ri = 0
 		self.Rj = 0
+		self.Control = 0
 		self.Constant = 0
 
 	def Decode(self):
@@ -75,10 +76,21 @@ class DataTransfer(InstructionBase.InstructionBase_):
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2],self.RegisterField.Rj)
+		elif self.Mnemonic == "CPYC":
+			if len(self.SplitLine) != 3:
+				Common.Error(self.Line, "Wrong number of operands")
+			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Ri)
+			self.GetConstantOperand(self.SplitLine[2])
+			self.Control = 1
 		elif self.Mnemonic == "PUSH":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Rj)
+		elif self.Mnemonic == "PUSHC":
+			if len(self.SplitLine) != 2:
+				Common.Error(self.Line, "Wrong number of operands")
+			self.GetConstantOperand(self.SplitLine[1])
+			self.Control = 1
 		elif self.Mnemonic == "POP":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
@@ -91,7 +103,8 @@ class DataTransfer(InstructionBase.InstructionBase_):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Rj, 5)
-		self.MachineCode += Common.NumToBinaryString(self.Constant, 17)
+		self.MachineCode += Common.NumToBinaryString(self.Control, 1)
+		self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
 		return self
 
 class FlowControl(InstructionBase.InstructionBase_):
@@ -205,8 +218,8 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			self.MachineCode += Common.NumToBinaryString(self.Rk, 5)
 			self.MachineCode += Common.NumToBinaryString(0, 12)
 		elif (self.Constant != None and self.Control != None):
-			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 			self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
+			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		else:
 			self.MachineCode += Common.NumToBinaryString(0, 17)
 		return self
@@ -256,14 +269,14 @@ class Emulated(InstructionBase.InstructionBase_):
 		self.Ri = 0
 		self.Rj = 0
 		self.Rk = None
-		self.Control = 1
+		self.Control = 0
 		self.Constant = None
 
 	def Decode(self):
 		if self.Mnemonic == "INC":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
-			self.OpCode = InstructionBase.InstructionList["ADDC"]
+			self.OpCode = InstructionBase.InstructionList["ADD"]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.Rj = self.Ri
 			self.Control = 1
@@ -271,7 +284,7 @@ class Emulated(InstructionBase.InstructionBase_):
 		elif self.Mnemonic == "DEC":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
-			self.OpCode = InstructionBase.InstructionList["SUBC"]
+			self.OpCode = InstructionBase.InstructionList["SUB"]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.Rj = self.Ri
 			self.Control = 1
@@ -303,8 +316,8 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.MachineCode += Common.NumToBinaryString(self.Rk, 5)
 			self.MachineCode += Common.NumToBinaryString(0, 12)
 		elif (self.Constant != None):
-			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 			self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
+			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		else:
 			self.MachineCode += Common.NumToBinaryString(0, 17)
 		return self
