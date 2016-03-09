@@ -72,7 +72,7 @@ class Assembly:
 			if len(split) != 3:
 				Common.Error(constant, "Wrong syntax for constant")
 			else:
-				self.Constants[Common.NumToHexString(int(split[0],0))] = Common.NumToHexString(int(split[2],0))
+				self.Constants[Common.NumToHexString(int(split[0],0))] = (Common.NumToHexString(int(split[2],0)), constant)
 
 	def DecodeDirectives(self):
 		for directive in self.DirectivesLines:
@@ -130,7 +130,7 @@ class Parser:
 		for parser in self.IncludeParsers:
 			allParsers.append(parser)
 		for parser in allParsers:
-			if parser.Label != None:
+			if parser.Label != None and parser.Assembly.Instructions:
 				lines.append(Mif.MifLine(comment="----- %s -----" % parser.Label.String))
 			for instruction in parser.Assembly.Instructions:
 				data = Common.NumToHexString(int(instruction.MachineCode, 2), 8)
@@ -140,8 +140,24 @@ class Parser:
 
 	def GetConstantsData(self):
 		lines = []
+		addresses = {}
 		for address, data in self.Assembly.Constants.iteritems():
-			lines.append(Mif.MifLine(data=data, address=address))
+			if address in addresses.keys():
+				if addresses[address] == data[0]:
+					continue
+				else:
+					Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
+			lines.append(Mif.MifLine(data=data[0], address=address))
+			addresses[address] = data[0]
+		for parser in self.IncludeParsers:
+			for address, data in parser.Assembly.Constants.iteritems():
+				if address in addresses.keys():
+					if addresses[address] == data[0]:
+						continue
+					else:
+						Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
+				lines.append(Mif.MifLine(data=data[0], address=address))
+				addresses[address] = data[0]
 		return lines
 
 	@staticmethod
