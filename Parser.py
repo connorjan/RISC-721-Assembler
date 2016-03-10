@@ -80,7 +80,8 @@ class Assembly:
 			if len(split) != 3:
 				Common.Error(directive, "Wrong syntax for directive")
 			else:
-				self.Directives[split[0]] = "0x"+Common.NumToHexString(int(split[2],0))
+				#self.Directives[split[0]] = "0x"+Common.NumToHexString(int(split[2],0))
+				self.Directives[split[0]] = split[2].strip()
 
 	def DecodeCode(self):
 		newCode = []
