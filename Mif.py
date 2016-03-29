@@ -27,10 +27,11 @@ class MifLine():
 
 class Mif():
 
-	def __init__(self, output, width, depth, headers = []):
+	def __init__(self, output, width, address, headers = []):
 		self.OutputFile = output
 		self.Width = width
-		self.Depth = depth
+		self.Address = address
+		self.Depth = 2**address
 		#self.DataRadix = dataRadix
 		self.DataRadix = "HEX"
 		self.Headers = headers

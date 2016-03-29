@@ -24,10 +24,10 @@ def main(args):
 		programOutput = output + ".mif"
 		dataOutput =  output + "_DM.mif"
 
-	programMif = Mif.Mif(programOutput, args["width"], args["depth"], ["Program memory for: %s" % assemblyFile])
-	dataMif = Mif.Mif(dataOutput, args["width"], args["depth"], ["Data memory for: %s" % assemblyFile])
+	programMif = Mif.Mif(programOutput, args["width"], args["address_width"], ["Program memory for: %s" % assemblyFile])
+	dataMif = Mif.Mif(dataOutput, args["width"], args["address_width"], ["Data memory for: %s" % assemblyFile])
 
-	myParser = Parser.Parser(assemblyFile, canInclude=True)	
+	myParser = Parser.Parser(assemblyFile, args["address_width"], canInclude=True)	
 	myParser.Parse()
 
 	programMif.AddData(myParser.GetAssemblyData()).Write()
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Assembler for RISC_721 by Connor Goldberg")
 	parser.add_argument("assembly-file", help="File to be assembled")
 	parser.add_argument("-o", "--output", metavar="out-file", type=str, help="The path of the MIF file")
-	parser.add_argument("-d", "--depth", metavar="depth", type=int, help="The depth of the output file", default=65536)
+	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=14)
 	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
 	args = vars(parser.parse_args())
 	main(args)

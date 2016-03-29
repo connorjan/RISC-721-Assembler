@@ -22,10 +22,10 @@ class Line:
 class Assembly:
 
 	InterruptVectorTable = {}
-	AddressSpaceSize = 65535
-	VectorTableStartAddress = 0b1111111111111000
+	AddressSpaceSize = None
+	VectorTableStartAddress = None
 
-	def __init__(self):
+	def __init__(self, addressWidth):
 		self.Original = []
 		self.WithoutComments = []
 
@@ -37,6 +37,9 @@ class Assembly:
 		self.Directives = {}
 
 		self.Instructions = []
+
+		Assembly.AddressSpaceSize = (2**addressWidth) - 1
+		Assembly.VectorTableStartAddress = Assembly.AddressSpaceSize - (2**3 - 1)
 
 	def __str__(self):
 		string = ""
@@ -98,9 +101,10 @@ class Assembly:
 
 class Parser:
 
-	def __init__(self, assemblyFilePath, canInclude = False, label=None):
+	def __init__(self, assemblyFilePath, addressWidth, canInclude = False, label=None):
 		self.AssemblyFilePath = assemblyFilePath
-		self.Assembly = Assembly()
+		self.Assembly = Assembly(addressWidth)
+		self.AddressWidth = addressWidth
 		self.CanInclude = canInclude
 		self.Label = label
 		self.LabelTable = {}
@@ -244,7 +248,7 @@ class Parser:
 			filePath = os.path.abspath(split[2])
 			if not os.path.isfile(filePath):
 				Common.Error(include, "Cannot find file: %s" % filePath)
-			includeParser = Parser(filePath, label=include)
+			includeParser = Parser(filePath, self.AddressWidth, label=include)
 			includeParser.Parse()
 			self.IncludeParsers.append(includeParser)
 

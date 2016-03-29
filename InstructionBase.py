@@ -50,13 +50,13 @@ class InstructionBase_(object):
 				Common.Error(self.Line, "Invalid operand for address: %s" % arg)
 		else:
 			self.Control = 1
-			if operand.startswith("0x"):
+			if operand.startswith("R"):
+				# Register direct
+				self.GetRegisterOperand(operand, self.RegisterField.Rj)
+			else:
 				# Absolute addressing mode
 				self.Rj = 0
 				self.Address = int(operand,0)
-			else:
-				# Register direct
-				self.GetRegisterOperand(operand, self.RegisterField.Rj)
 
 	def GetConstantOperand(self, operand):
 		try:
