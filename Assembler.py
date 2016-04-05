@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 import argparse
 import os
-from time import clock
+import time
 
 import Common
 import Mif
@@ -13,7 +13,7 @@ Author: Connor Goldberg
 """
 
 def main(args):
-	start = clock()
+	start = time.clock()
 
 	assemblyFile = args["assembly-file"]
 	output = args["output"]
@@ -33,10 +33,11 @@ def main(args):
 	programMif.AddData(myParser.GetAssemblyData()).Write()
 	dataMif.AddData(Parser.Parser.GetInterruptVectorTable()).AddData(myParser.GetConstantsData()).Write()
 	
-	end = clock()
+	end = time.clock()
 	
 	print "Successfully assembled %s into %s and %s" % (assemblyFile, programOutput, dataOutput)
 	print "Time elapsed: %s ms" % str(round(float(end-start)*1000,3))
+	print "Completed on %s at %s" % (time.strftime("%m/%d/%Y"), time.strftime("%I:%M:%S"))
 
 if __name__ == "__main__":
 	

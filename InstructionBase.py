@@ -56,7 +56,10 @@ class InstructionBase_(object):
 			else:
 				# Absolute addressing mode
 				self.Rj = 0
-				self.Address = int(operand,0)
+				try:
+					self.Address = int(operand,0)
+				except Exception:
+					Common.Error(self.Line, "Invalid address operand: %s" % operand)
 
 	def GetConstantOperand(self, operand):
 		try:

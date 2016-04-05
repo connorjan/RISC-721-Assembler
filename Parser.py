@@ -71,20 +71,21 @@ class Assembly:
 
 	def DecodeConstants(self):
 		for constant in self.ConstantsLines:
-			split = constant.String.split()
-			if len(split) != 3:
+			split = constant.String.split("=")
+			split = [piece.strip() for piece in split]
+			if len(split) != 2:
 				Common.Error(constant, "Wrong syntax for constant")
 			else:
-				self.Constants[Common.NumToHexString(int(split[0],0))] = (Common.NumToHexString(int(split[2],0)), constant)
+				self.Constants[Common.ExprToHexString(split[0],constant)] = (Common.ExprToHexString(split[1],constant), constant)
 
 	def DecodeDirectives(self):
 		for directive in self.DirectivesLines:
-			split = directive.String.split()
-			if len(split) != 3:
+			split = directive.String.split("=")
+			split = [piece.strip() for piece in split]
+			if len(split) != 2:
 				Common.Error(directive, "Wrong syntax for directive")
 			else:
-				#self.Directives[split[0]] = "0x"+Common.NumToHexString(int(split[2],0))
-				self.Directives[split[0]] = split[2].strip()
+				self.Directives[split[0]] = split[1].strip() if split[1].startswith('R') else "0x"+Common.ExprToHexString(split[1].strip(),directive)
 
 	def DecodeCode(self):
 		newCode = []
