@@ -19,7 +19,7 @@ def DecodeLine(line):
 		instruction = DataTransfer(line, mnemonic, opCode)
 	elif (opCode == 0x5 or opCode == 0x6 or opCode == 0x7):
 		instruction = FlowControl(line, mnemonic, opCode)
-	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x14):
+	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x16):
 		instruction = LogicUnit(line, mnemonic, opCode)
 	elif (opCode == 0x10):
 		instruction = RotateShift(line, mnemonic, opCode)
@@ -181,7 +181,7 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Rj)
 			self.GetConstantOperand(self.SplitLine[2])
 			self.Control = 1
-		elif self.Mnemonic == "NOT":
+		elif self.Mnemonic == "NOT" or self.Mnemonic == "FTI" or self.Mnemonic == "ITF":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
@@ -192,7 +192,7 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetConstantOperand(self.SplitLine[2])
 			self.Control = 1
-		elif self.Mnemonic == "ADDC" or self.Mnemonic == "SUBC" or self.Mnemonic == "ANDC" or self.Mnemonic == "BICC" or self.Mnemonic == "ORC" or self.Mnemonic == "XORC":
+		elif self.Mnemonic == "ADDC" or self.Mnemonic == "SUBC" or self.Mnemonic == "ANDC" or self.Mnemonic == "BICC" or self.Mnemonic == "ORC" or self.Mnemonic == "BISC" or self.Mnemonic == "XORC":
 			if len(self.SplitLine) != 4:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)

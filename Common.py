@@ -15,7 +15,7 @@ def Error(line, errorMsg = ""):
 		print "Error in %s on line %s:\n\t%s\n%s" % (line.FileName, line.Number, line.String, errorMsg)
 	sys.exit(1)
 
-LegalChars = "0123456789xXaAbBcCdDeEfF() *^+-/.%\t"
+LegalChars = "0123456789xXaAbBcCdDeEfF() *^+-/.%<>&|~\t"
 def Evaluate(expr, line=None):
 	try:
 		expr = expr.replace('^',"**")
@@ -25,9 +25,9 @@ def Evaluate(expr, line=None):
 		res = eval(expr)
 		if type(res) is float and res.is_integer():
 			return int(res)
-		elif type(res) is not int:
+		elif type(res) is not int and type(res) is not long:
 			newRes = int(round(res))
-			warnMsg = "Converted float %s to %s" % (res, newRes)
+			warnMsg = "Converted %s %s to %s" % (type(res), res, newRes)
 			Warn(line, warnMsg)
 			return newRes
 		else:
