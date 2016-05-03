@@ -41,7 +41,18 @@ class LoadStore(InstructionBase.InstructionBase_):
 		self.Address = 0
 
 	def Decode(self):
-		if len(self.SplitLine) != 3 and len(self.SplitLine) != 4:
+		if len(self.SplitLine) == 4 or len(self.SplitLine) == 5:
+			if self.Mnemonic == "LD":
+				newSplitLine = self.SplitLine[0:2]
+				newSplitLine.append(self.SplitLine[2] + '+' + self.SplitLine[len(self.SplitLine)-1])
+				self.SplitLine = newSplitLine
+			elif self.Mnemonic == "ST":
+				newSplitLine = self.SplitLine[0:1]
+				newSplitLine.append(self.SplitLine[1] + '+' + self.SplitLine[len(self.SplitLine)-2])
+				newSplitLine.append(self.SplitLine[len(self.SplitLine)-1])
+				self.SplitLine = newSplitLine
+
+		if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 		elif self.Mnemonic == "LD":
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)

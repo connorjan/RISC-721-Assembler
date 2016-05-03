@@ -85,7 +85,12 @@ class Assembly:
 			if len(split) != 2:
 				Common.Error(directive, "Wrong syntax for directive")
 			else:
-				self.Directives[split[0]] = split[1].strip() if split[1].startswith('R') else "0x"+Common.ExprToHexString(split[1].strip(),directive)
+				tempDirective = split[1]
+				for prevDirective, value in self.Directives.iteritems():
+					extracted = [piece for piece in re.split("[^a-zA-Z0-9_]", tempDirective)] # Split the instruction by spaces, commas, and brackets
+					if prevDirective in extracted:
+						tempDirective = tempDirective.replace(prevDirective, value)
+				self.Directives[split[0]] = tempDirective.strip() if tempDirective.startswith('R') else "0x"+Common.ExprToHexString(tempDirective.strip(),directive)
 
 	def DecodeCode(self):
 		newCode = []

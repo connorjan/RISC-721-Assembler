@@ -1,5 +1,6 @@
 from ast import literal_eval
 import os
+import struct
 import sys
 
 def Enum(*sequential, **named):
@@ -16,15 +17,18 @@ def Error(line, errorMsg = ""):
 	sys.exit(1)
 
 LegalChars = "0123456789xXaAbBcCdDeEfF() *^+-/.%<>&|~\t"
-def Evaluate(expr, line=None):
+def Evaluate(expr, line=None, canReturnFloat=False):
 	try:
 		expr = expr.replace('^',"**")
 		for char in expr:
 			if char not in LegalChars:
 				return expr
 		res = eval(expr)
-		if type(res) is float and res.is_integer():
-			return int(res)
+		if type(res) is float:
+			if canReturnFloat:
+				return res
+			else:
+				return int(res)
 		elif type(res) is not int and type(res) is not long:
 			newRes = int(round(res))
 			warnMsg = "Converted %s %s to %s" % (type(res), res, newRes)
@@ -36,7 +40,12 @@ def Evaluate(expr, line=None):
 		Error(line, "Invalid expression: %s" % expr)
 
 def ExprToHexString(expr, line=None, padding=0):
-	return NumToHexString(Evaluate(expr,line), line=line, padding=padding)
+	expr = expr.strip()
+	if expr.startswith(".float(") and expr.endswith(")"):
+		expr = expr[expr.find("(")+1:expr.rfind(")")]
+		return FloatToHexString(Evaluate(expr,line=line,canReturnFloat=True), line)
+	else:
+		return NumToHexString(Evaluate(expr,line), line=line, padding=padding)
 
 def FileToList(filePath):
 	if os.path.isfile(filePath):
@@ -44,6 +53,12 @@ def FileToList(filePath):
 			return [line.strip() for line in _file]
 	else: 
 		return []
+
+def FloatToHexString(f, line=None):
+	try:
+		return str(hex(struct.unpack('<I', struct.pack('<f', float(f)))[0]))[2:].upper().strip('L')
+	except Exception as e:
+		Error(line, "Invalid expression")
 
 def NumToBinaryString(number, padding = 0):
 	formatter = "{0:0%sb}" % padding
@@ -62,7 +77,7 @@ def SecondsToStr(t):
             [(t*1000,),1000,60,60])
 
 def Warn(line, errorMsg = ""):
-	if type(line) is str:
+	if type(line) is str or line == None:
 		print line
 	else:
 		print "Warning in %s on line %s:\n\t%s\n%s" % (line.FileName, line.Number, line.String, errorMsg)
