@@ -52,16 +52,21 @@ class LoadStore(InstructionBase.InstructionBase_):
 				newSplitLine.append(self.SplitLine[len(self.SplitLine)-1])
 				self.SplitLine = newSplitLine
 
-		if len(self.SplitLine) != 3:
-				Common.Error(self.Line, "Wrong number of operands")
-		elif self.Mnemonic == "LD":
-			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
-			self.GetAddressOperand(self.SplitLine[2])
-		elif self.Mnemonic == "ST":
-			self.GetAddressOperand(self.SplitLine[1])
-			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Ri)
-		else:
-			Common.Error(self.Line, "Error in Decode")
+		try:
+			if len(self.SplitLine) != 3:
+					Common.Error(self.Line, "Wrong number of operands")
+			elif self.Mnemonic == "LD":
+				self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
+				self.GetAddressOperand(self.SplitLine[2])
+			elif self.Mnemonic == "ST":
+				self.GetAddressOperand(self.SplitLine[1])
+				self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Ri)
+			else:
+				Common.Error(self.Line, "Error in Decode")
+
+		except Exception:
+			Common.Error(self.Line, "Could not decode addressing mode")
+
 		return self
 
 	def Assemble(self):
@@ -159,6 +164,7 @@ class FlowControl(InstructionBase.InstructionBase_):
 			self.LabelOperand = self.SplitLine[1]
 			if self.Mnemonic in self.JumpConditions.keys():
 				self.CNVZ = self.JumpConditions[self.Mnemonic]
+			# else: it is a CALL instruction
 		return self
 
 	def Assemble(self):
@@ -237,20 +243,29 @@ class LogicUnit(InstructionBase.InstructionBase_):
 
 class RotateShift(InstructionBase.InstructionBase_):
 
-	Conditions = { 	"SRL"	: 0x0,
+	Conditions = {  "SRL"	: 0x0,
+					"SRLC"	: 0x0,
 					"SLL"	: 0x1,
+					"SLLC"	: 0x1,
 					"SRA"	: 0x2,
+					"SRAC"	: 0x2,
 					"RTR"	: 0x4,
+					"RTRC"	: 0x4,
 					"RTL"	: 0x5,
+					"RTLC"	: 0x5,
 					"RRC"	: 0x6,
-					"RLC"	: 0x7 }
+					"RRCC"	: 0x6,
+					"RLC"	: 0x7,
+					"RLCC"	: 0x7
+				}
 
 	def __init__(self, line, mnemonic, opCode):
 		super(RotateShift, self).__init__(line, mnemonic, opCode)
 		self.Ri = 0
 		self.Rj = 0
-		self.Control = 0
-		self.Constant = 0
+		self.Rk = None
+		self.Constant = None
+		self.Control = 0	
 
 	def Decode(self):
 		if len(self.SplitLine) != 4:
@@ -259,7 +274,7 @@ class RotateShift(InstructionBase.InstructionBase_):
 			self.Control = self.Conditions[self.Mnemonic]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
-			self.GetConstantOperand(self.SplitLine[3])
+			self.GetEitherOperand(self.SplitLine[3], self.RegisterField.Rk)
 		else:
 			Common.Error(self.Line, "Error in Decode")
 		return self
@@ -268,9 +283,17 @@ class RotateShift(InstructionBase.InstructionBase_):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Rj, 5)
+		if self.Rk != None:
+			self.MachineCode += Common.NumToBinaryString(self.Rk, 5)
+			self.MachineCode += Common.NumToBinaryString(0, 8)
+		else:
+			self.MachineCode += Common.NumToBinaryString(self.Constant, 6)
+			self.MachineCode += Common.NumToBinaryString(0, 7)
 		self.MachineCode += Common.NumToBinaryString(self.Control, 3)
-		self.MachineCode += Common.NumToBinaryString(self.Constant, 6)
-		self.MachineCode += Common.NumToBinaryString(0, 8)
+		if self.Rk != None:
+			self.MachineCode += Common.NumToBinaryString(0, 1)
+		else:
+			self.MachineCode += Common.NumToBinaryString(1, 1)
 		return self
 
 class Emulated(InstructionBase.InstructionBase_):
@@ -310,7 +333,10 @@ class Emulated(InstructionBase.InstructionBase_):
 		elif self.Mnemonic == "CLRC":
 			self.OpCode = InstructionBase.InstructionList["BICC"]
 			# Ri and Rj are 0, the status register
-			self.Common.Error(self.Line, "CLRC not possible right now.")
+			self.Ri = 0
+			self.Rj = 0
+			self.Control = 1
+			self.Constant = 1
 		elif self.Mnemonic == "NOP":
 			self.OpCode = InstructionBase.InstructionList["CPY"]
 			self.Ri = 1

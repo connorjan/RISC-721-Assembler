@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/python
 import argparse
 import os
 import time
@@ -23,6 +23,14 @@ def main(args):
 	elif not output.endswith(".mif"):
 		programOutput = output + ".mif"
 		dataOutput =  output + "_DM.mif"
+	else:
+		programOutput = output
+		split = os.path.splitext(output)
+		dataOutput = split[0] + "_DM"
+		if len(split) == 2:
+			dataOutput = dataOutput + split[1]
+		else:
+			dataOutput = dataOutput + ".mif"
 
 	programMif = Mif.Mif(programOutput, args["width"], args["address_width"], ["Program memory for: %s" % assemblyFile])
 	dataMif = Mif.Mif(dataOutput, args["width"], args["address_width"], ["Data memory for: %s" % assemblyFile])
@@ -35,7 +43,7 @@ def main(args):
 	
 	end = time.clock()
 	
-	print "Successfully assembled %s into %s and %s" % (assemblyFile, programOutput, dataOutput)
+	print "Successfully assembled {} into {}{}".format(assemblyFile, programOutput, " and "+dataOutput if dataMif.Data else '')
 	print "Time elapsed: %s ms" % str(round(float(end-start)*1000,3))
 	print "Completed on %s at %s" % (time.strftime("%m/%d/%Y"), time.strftime("%I:%M:%S"))
 

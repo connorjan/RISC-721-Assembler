@@ -43,31 +43,32 @@ class Mif():
 		return self
 
 	def Write(self):
-		with open(self.OutputFile, "w+") as _file:
-			_file.seek(0)
-			_file.truncate() # Clears out the file if it exists
-			_file.write("-- Assembled for RISC_721 by Connor Goldberg\n")
+		if self.Data:
+			with open(self.OutputFile, "w+") as _file:
+				_file.seek(0)
+				_file.truncate() # Clears out the file if it exists
+				_file.write("-- Assembled for RISC_721 by Connor Goldberg\n")
 
-			for line in self.Headers:
-				_file.write("-- %s\n" % line)
+				for line in self.Headers:
+					_file.write("-- %s\n" % line)
 
-			_file.write("\nWIDTH = %s;\n" % str(self.Width))
-			_file.write("DEPTH = %s;\n" % str(self.Depth)) #TODO: Check to see if number of instts is less than depth
-			_file.write("ADDRESS_RADIX = HEX;\n")
-			_file.write("DATA_RADIX = %s;\n" % str(self.DataRadix))
-			_file.write("\nCONTENT BEGIN\n")
-			_file.write("\n")
+				_file.write("\nWIDTH = %s;\n" % str(self.Width))
+				_file.write("DEPTH = %s;\n" % str(self.Depth)) #TODO: Check to see if number of instts is less than depth
+				_file.write("ADDRESS_RADIX = HEX;\n")
+				_file.write("DATA_RADIX = %s;\n" % str(self.DataRadix))
+				_file.write("\nCONTENT BEGIN\n")
+				_file.write("\n")
 
-			addressCounter = 0
-			for mifLine in self.Data:
-				if mifLine.Data == None:
-					_file.write(str(mifLine).strip()+'\n')
-				elif mifLine.Address != None:
-					_file.write(str(mifLine)+'\n')
-					addressCounter+=1
-				else:
-					mifLine.Address = addressCounter
-					_file.write(str(mifLine)+'\n')
-					addressCounter+=1
+				addressCounter = 0
+				for mifLine in self.Data:
+					if mifLine.Data == None:
+						_file.write(str(mifLine).strip()+'\n')
+					elif mifLine.Address != None:
+						_file.write(str(mifLine)+'\n')
+						addressCounter+=1
+					else:
+						mifLine.Address = addressCounter
+						_file.write(str(mifLine)+'\n')
+						addressCounter+=1
 
-			_file.write("\nEND;\n")
+				_file.write("\nEND;\n")

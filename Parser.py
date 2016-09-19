@@ -6,7 +6,7 @@ import Common
 import Instructions
 import Mif
 
-class Line:
+class Line(object):
 
 	def __init__(self, fileName, number, string):
 		self.FileName = fileName
@@ -19,7 +19,7 @@ class Line:
 	def __repr__(self):
 		return str(self)
 
-class Assembly:
+class Assembly(object):
 
 	InterruptVectorTable = {}
 	AddressSpaceSize = None
@@ -65,8 +65,8 @@ class Assembly:
 		return str(self)
 
 	def Decode(self):
-		self.DecodeConstants()
 		self.DecodeDirectives()
+		self.DecodeConstants()
 		self.DecodeCode()
 
 	def DecodeConstants(self):
@@ -76,7 +76,9 @@ class Assembly:
 			if len(split) != 2:
 				Common.Error(constant, "Wrong syntax for constant")
 			else:
-				self.Constants[Common.ExprToHexString(split[0],constant)] = (Common.ExprToHexString(split[1],constant), constant)
+				tempAddress = self.ReplaceDirective(split[0]).strip()
+				tempConstant = self.ReplaceDirective(split[1]).strip()
+				self.Constants[Common.ExprToHexString(tempAddress,constant)] = (Common.ExprToHexString(tempConstant,constant), constant)
 
 	def DecodeDirectives(self):
 		for directive in self.DirectivesLines:
@@ -85,11 +87,7 @@ class Assembly:
 			if len(split) != 2:
 				Common.Error(directive, "Wrong syntax for directive")
 			else:
-				tempDirective = split[1]
-				for prevDirective, value in self.Directives.iteritems():
-					extracted = [piece for piece in re.split("[^a-zA-Z0-9_]", tempDirective)] # Split the instruction by spaces, commas, and brackets
-					if prevDirective in extracted:
-						tempDirective = tempDirective.replace(prevDirective, value)
+				tempDirective = self.ReplaceDirective(split[1])
 				self.Directives[split[0]] = tempDirective.strip() if tempDirective.startswith('R') else "0x"+Common.ExprToHexString(tempDirective.strip(),directive)
 
 	def DecodeCode(self):
@@ -99,13 +97,20 @@ class Assembly:
 				extracted = [piece for piece in re.split("\[|\]| |,|\t|\+", line.String)] # Split the instruction by spaces, commas, and brackets
 				if directive in extracted:
 					line.String = line.String.replace(directive, value)
-			if line.String.endswith(':'):
+			if line.String.strip().endswith(':'):
 				Common.Error(line, "Label must be on the same line as an instruction")
 			self.Instructions.append(Instructions.DecodeLine(line))
 			newCode.append(line)
 		self.Code = newCode
 
-class Parser:
+	def ReplaceDirective(self, string):
+		for directive, value in self.Directives.iteritems():
+			extracted = [piece for piece in re.split("[^a-zA-Z0-9_]", string)] # Split the instruction by spaces, commas, and brackets
+			if directive in extracted:
+				string = string.replace(directive, value)
+		return string
+
+class Parser(object):
 
 	def __init__(self, assemblyFilePath, addressWidth, canInclude = False, label=None):
 		self.AssemblyFilePath = assemblyFilePath
@@ -226,10 +231,7 @@ class Parser:
 				elif myCategory == category.Constants:
 					self.Assembly.ConstantsLines.append(line)
 				elif myCategory == category.Code:
-					if "=" in line.String:
-						self.Assembly.DirectivesLines.append(line)
-					else:
-						self.Assembly.Code.append(line)
+					self.Assembly.Code.append(line)
 				elif myCategory == category.Includes:
 					if not line in self.IncludeFiles:
 						self.IncludeFiles.append(line)

@@ -25,7 +25,7 @@ class InstructionBase_(object):
 		Common.Error(self.Line, "This instruction did not implement the method: Decode")
 
 	def GetAddressOperand(self, arg):
-		# strip M[], figure out what the control is, do stuff based off of the control. Make an enum for addressing mode maybe
+		# strip M[], figure out what the control is, do stuff based off of the control.
 		operand = arg.replace("M[",'').replace(']','')
 		if '+' in operand:
 			self.Control = 0
@@ -49,12 +49,18 @@ class InstructionBase_(object):
 			else:
 				Common.Error(self.Line, "Invalid operand for address: %s" % arg)
 		else:
-			self.Control = 1
 			if operand.startswith("R"):
 				# Register direct
+				self.Control = 1
 				self.GetRegisterOperand(operand, self.RegisterField.Rj)
+			elif operand == "PC":
+				# PC Relative with no offset
+				self.Control = 0
+				self.Rj = 0
+				self.Address = 0
 			else:
 				# Absolute addressing mode
+				self.Control = 1
 				self.Rj = 0
 				try:
 					self.Address = int(operand,0)
@@ -66,6 +72,12 @@ class InstructionBase_(object):
 			self.Constant = int(operand,0)
 		except ValueError:
 			Common.Error(self.Line, "Constant must be a number: %s" % operand)
+
+	def GetEitherOperand(self, operand, registerField):
+		if operand[0] == 'R':
+			self.GetRegisterOperand(operand, registerField)
+		else:
+			self.GetConstantOperand(operand)
 
 	def GetRegisterOperand(self, operand, registerField):
 		if operand[0] != 'R' or not operand[1:].isdigit():
@@ -123,12 +135,19 @@ InstructionList = {	"LD" 	: 0x00,
 					"XOR"	: 0x0F,
 					"XORC"	: 0x0F,
 					"SRL"	: 0x10,
+					"SRLC"	: 0x10,
 					"SLL"	: 0x10,
+					"SLLC"	: 0x10,
 					"SRA"	: 0x10,
+					"SRAC"	: 0x10,
 					"RTR"	: 0x10,
+					"RTRC"	: 0x10,
 					"RTL"	: 0x10,
+					"RTLC"	: 0x10,
 					"RRC"	: 0x10,
+					"RRCC"	: 0x10,
 					"RLC"	: 0x10,
+					"RLCC"	: 0x10,
 					"FA"	: 0x11,
 					"FS"	: 0x12,
 					"FM"	: 0x13,
