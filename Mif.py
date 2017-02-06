@@ -13,6 +13,16 @@ class MifLine(object):
 		self.Comment = comment
 		self.Instruction = instruction
 
+	def GetAddressAsInt(self):
+		try:
+			if type(self.Address) is str:
+				return int(self.Address, 16)
+			else:
+				return self.Address
+		except Exception as e:
+			print e
+			raise e
+
 	def Altera(self):
 		string = ""
 		if self.Address is not None:
@@ -64,11 +74,18 @@ class Mif(object):
 		self.Headers = headers
 		self.Data = []
 		self.WriteZeros = writeZeros
+		self.AddressesWritten = set()
 
 	def AddData(self, data):
 		if data:
 			self.Data += data
 		return self
+
+	def AddAddress(self, address):
+		if address in self.AddressesWritten:
+			Common.Error(errorMsg="Address already written to: {}".format(address))
+		else:
+			self.AddressesWritten.add(address)
 
 	def Write(self):
 		if self.Data:
@@ -89,21 +106,26 @@ class Mif(object):
 				
 				_file.write("\n")
 
-				addressesWritten = set()
 				addressCounter = 0
 				for mifLine in self.Data:
-					print mifLine.ToString(self.Format)
 					if mifLine.Data is None and mifLine.Address is None:
 						# This is just a comment
 						_file.write(mifLine.ToString(self.Format).strip()+'\n')
 					elif mifLine.Address is not None:
 						# If there is data and an address
 						_file.write(mifLine.ToString(self.Format)+'\n')
+						self.AddAddress(mifLine.GetAddressAsInt())
 						#addressCounter+=1
 					else:
 						mifLine.Address = addressCounter
 						_file.write(mifLine.ToString(self.Format)+'\n')
+						self.AddAddress(mifLine.GetAddressAsInt())
 						addressCounter+=1
 				
+				if self.WriteZeros:
+					for a in range(0, self.Depth):
+						if a not in self.AddressesWritten:
+							_file.write(MifLine(data="0", address=a).ToString(self.Format)+'\n')
+
 				if self.Format == "altera":
 					_file.write("\nEND;\n")
