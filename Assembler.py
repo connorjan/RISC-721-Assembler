@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/classes/eeee720/tools/lnx86/bin/python2.7
 import argparse
 import os
 import time
@@ -32,8 +32,8 @@ def main(args):
 		else:
 			dataOutput = dataOutput + ".mif"
 
-	programMif = Mif.Mif(_format=args["format"], output=programOutput, width=args["width"], address=args["address_width"], headers=["Program memory for: %s" % assemblyFile])
-	dataMif = Mif.Mif(_format=args["format"], output=dataOutput, width=args["width"], address=args["address_width"], headers=["Data memory for: %s" % assemblyFile])
+	programMif = Mif.Mif(_format=args["format"], output=programOutput, width=args["width"], address=args["address_width"], headers=["Program memory for: %s" % assemblyFile], writeZeros=args["zeros"])
+	dataMif = Mif.Mif(_format=args["format"], output=dataOutput, width=args["width"], address=args["address_width"], headers=["Data memory for: %s" % assemblyFile], writeZeros=args["zeros"])
 
 	myParser = Parser.Parser(assemblyFile, args["address_width"], canInclude=True)	
 	myParser.Parse()
@@ -55,5 +55,7 @@ if __name__ == "__main__":
 	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=14)
 	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
 	parser.add_argument("-f", "--format", metavar="format", type=str, help="The output format of the assembled mif file", choices=["altera","cadence"], default="cadence")
+	parser.add_argument("-z", "--zeros", action="store_true", help="Specify if uninitialized zeros should be exlicitly written")
+
 	args = vars(parser.parse_args())
 	main(args)

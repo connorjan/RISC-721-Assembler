@@ -20,7 +20,7 @@ class MifLine(object):
 				string += self.Address.replace("0x",'').zfill(4)
 			else:
 				string += Common.NumToHexString(self.Address, 4)
-		if self.Data != None:
+		if self.Data is not None:
 			string += " : %s;" % self.Data.zfill(8)
 		if self.Comment:
 			string += " %% %s %%" % self.Comment
@@ -34,7 +34,7 @@ class MifLine(object):
 				string += self.Address.replace("0x",'').zfill(4)
 			else:
 				string += Common.NumToHexString(self.Address, 4)
-		if self.Data != None:
+		if self.Data is not None:
 			string += "    {}".format(self.Data.zfill(8))
 		if self.Comment:
 			string += " // {}".format(self.Comment)
@@ -54,7 +54,7 @@ class MifLine(object):
 
 class Mif(object):
 
-	def __init__(self, _format, output, width, address, headers = []):
+	def __init__(self, _format, output, width, address, headers = [], writeZeros=False):
 		self.Format = _format
 		self.OutputFile = output
 		self.Width = width
@@ -63,6 +63,7 @@ class Mif(object):
 		self.DataRadix = "HEX"
 		self.Headers = headers
 		self.Data = []
+		self.WriteZeros = writeZeros
 
 	def AddData(self, data):
 		if data:
@@ -88,13 +89,17 @@ class Mif(object):
 				
 				_file.write("\n")
 
+				addressesWritten = set()
 				addressCounter = 0
 				for mifLine in self.Data:
-					if mifLine.Data is None:
+					print mifLine.ToString(self.Format)
+					if mifLine.Data is None and mifLine.Address is None:
+						# This is just a comment
 						_file.write(mifLine.ToString(self.Format).strip()+'\n')
 					elif mifLine.Address is not None:
+						# If there is data and an address
 						_file.write(mifLine.ToString(self.Format)+'\n')
-						addressCounter+=1
+						#addressCounter+=1
 					else:
 						mifLine.Address = addressCounter
 						_file.write(mifLine.ToString(self.Format)+'\n')
