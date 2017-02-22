@@ -72,6 +72,8 @@ class InstructionBase_(object):
 			self.Constant = int(operand,0)
 		except ValueError:
 			Common.Error(self.Line, "Constant must be a number: %s" % operand)
+		
+		self.Control = 1
 
 	def GetEitherOperand(self, operand, registerField):
 		if operand[0] == 'R':
@@ -160,5 +162,6 @@ InstructionList = {	"LD" 	: 0x00,
 					"DEC" 	: 0xFF,
 					"CLR" 	: 0xFF,
 					"CLRC" 	: 0xFF,
+					"SETC" 	: 0xFF,
 					"NOP" 	: 0xFF
 					}

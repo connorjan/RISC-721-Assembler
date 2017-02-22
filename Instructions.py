@@ -91,22 +91,20 @@ class DataTransfer(InstructionBase.InstructionBase_):
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Ri)
-			self.GetRegisterOperand(self.SplitLine[2],self.RegisterField.Rj)
+			self.GetEitherOperand(self.SplitLine[2],self.RegisterField.Rj)
 		elif self.Mnemonic == "CPYC":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Ri)
 			self.GetConstantOperand(self.SplitLine[2])
-			self.Control = 1
 		elif self.Mnemonic == "PUSH":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
-			self.GetRegisterOperand(self.SplitLine[1],self.RegisterField.Rj)
+			self.GetEitherOperand(self.SplitLine[1],self.RegisterField.Rj)
 		elif self.Mnemonic == "PUSHC":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetConstantOperand(self.SplitLine[1])
-			self.Control = 1
 		elif self.Mnemonic == "POP":
 			if len(self.SplitLine) != 2:
 				Common.Error(self.Line, "Wrong number of operands")
@@ -191,37 +189,34 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Rj)
-			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rk)
+			self.GetEitherOperand(self.SplitLine[2], self.RegisterField.Rk)
 		elif self.Mnemonic == "CMPC":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Rj)
 			self.GetConstantOperand(self.SplitLine[2])
-			self.Control = 1
 		elif self.Mnemonic == "NOT" or self.Mnemonic == "FTI" or self.Mnemonic == "ITF":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
-			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
+			self.GetEitherOperand(self.SplitLine[2], self.RegisterField.Rj)
 		elif self.Mnemonic == "NOTC":
 			if len(self.SplitLine) != 3:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetConstantOperand(self.SplitLine[2])
-			self.Control = 1
 		elif self.Mnemonic == "ADDC" or self.Mnemonic == "SUBC" or self.Mnemonic == "ANDC" or self.Mnemonic == "BICC" or self.Mnemonic == "ORC" or self.Mnemonic == "BISC" or self.Mnemonic == "XORC":
 			if len(self.SplitLine) != 4:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
 			self.GetConstantOperand(self.SplitLine[3])
-			self.Control = 1
 		else:
 			if len(self.SplitLine) != 4:
 				Common.Error(self.Line, "Wrong number of operands")
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
-			self.GetRegisterOperand(self.SplitLine[3], self.RegisterField.Rk)
+			self.GetEitherOperand(self.SplitLine[3], self.RegisterField.Rk)
 		return self
 
 	def Assemble(self):
@@ -265,13 +260,13 @@ class RotateShift(InstructionBase.InstructionBase_):
 		self.Rj = 0
 		self.Rk = None
 		self.Constant = None
-		self.Control = 0	
+		self.Condition = 0	
 
 	def Decode(self):
 		if len(self.SplitLine) != 4:
 				Common.Error(self.Line, "Wrong number of operands")
 		elif self.Mnemonic in self.Conditions:
-			self.Control = self.Conditions[self.Mnemonic]
+			self.Condition = self.Conditions[self.Mnemonic]
 			self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 			self.GetRegisterOperand(self.SplitLine[2], self.RegisterField.Rj)
 			self.GetEitherOperand(self.SplitLine[3], self.RegisterField.Rk)
@@ -289,7 +284,7 @@ class RotateShift(InstructionBase.InstructionBase_):
 		else:
 			self.MachineCode += Common.NumToBinaryString(self.Constant, 6)
 			self.MachineCode += Common.NumToBinaryString(0, 7)
-		self.MachineCode += Common.NumToBinaryString(self.Control, 3)
+		self.MachineCode += Common.NumToBinaryString(self.Condition, 3)
 		if self.Rk != None:
 			self.MachineCode += Common.NumToBinaryString(0, 1)
 		else:
@@ -331,7 +326,14 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.Rj = self.Ri
 			self.Rk = self.Rj
 		elif self.Mnemonic == "CLRC":
-			self.OpCode = InstructionBase.InstructionList["BICC"]
+			self.OpCode = InstructionBase.InstructionList["BIC"]
+			# Ri and Rj are 0, the status register
+			self.Ri = 0
+			self.Rj = 0
+			self.Control = 1
+			self.Constant = 1
+		elif self.Mnemonic == "SETC":
+			self.OpCode = InstructionBase.InstructionList["OR"]
 			# Ri and Rj are 0, the status register
 			self.Ri = 0
 			self.Rj = 0

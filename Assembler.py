@@ -1,4 +1,5 @@
-#!/classes/eeee720/tools/lnx86/bin/python2.7
+#!/usr/bin/env python
+
 import argparse
 import os
 import time
@@ -19,14 +20,14 @@ def main(args):
 	output = args["output"]
 	if output == None:
 		programOutput = os.path.join(os.path.split(os.path.abspath(assemblyFile))[0],os.path.splitext(os.path.basename(assemblyFile))[0]+".mif")
-		dataOutput = os.path.join(os.path.split(os.path.abspath(assemblyFile))[0],os.path.splitext(os.path.basename(assemblyFile))[0]+"_DM.mif")
+		dataOutput = os.path.join(os.path.split(os.path.abspath(assemblyFile))[0],os.path.splitext(os.path.basename(assemblyFile))[0]+"_dm.mif")
 	elif not output.endswith(".mif"):
 		programOutput = output + ".mif"
-		dataOutput =  output + "_DM.mif"
+		dataOutput =  output + "_dm.mif"
 	else:
 		programOutput = output
 		split = os.path.splitext(output)
-		dataOutput = split[0] + "_DM"
+		dataOutput = split[0] + "_dm"
 		if len(split) == 2:
 			dataOutput = dataOutput + split[1]
 		else:
