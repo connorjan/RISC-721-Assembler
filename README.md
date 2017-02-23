@@ -1,5 +1,7 @@
 # RISC-721-Assembler
 
-Please view the [User's Guide](cjg_Assembler_User_Guide.pdf) for installation and usage instructions for this assembler. This documentation is written mostly in markdown with some minor LaTeX as well. To build the documentation the following command can be used:
+Please view the [User's Guide](http://assembler.connorgoldberg.com) for installation and usage instructions for this assembler.
 
-`pandoc --latex-engine=xelatex -f markdown $file_name -o $file_base_name.pdf -V geometry:margin=1in`
+To build a pdf version of the documentation, use the following command:
+
+`pandoc --latex-engine=xelatex -f markdown cjg_Assembler_User_Guide.md -o cjg_Assembler_User_Guide.pdf -V geometry:margin=1in`
