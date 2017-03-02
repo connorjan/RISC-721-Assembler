@@ -54,7 +54,7 @@ class LoadStore(InstructionBase.InstructionBase_):
 
 		try:
 			if len(self.SplitLine) != 3:
-					Common.Error(self.Line, "Wrong number of operands")
+				Common.Error(self.Line, "Wrong number of operands")
 			elif self.Mnemonic == "LD":
 				self.GetRegisterOperand(self.SplitLine[1], self.RegisterField.Ri)
 				self.GetAddressOperand(self.SplitLine[2])

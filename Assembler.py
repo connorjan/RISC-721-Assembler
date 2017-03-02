@@ -53,7 +53,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Assembler for RISC_721 by Connor Goldberg")
 	parser.add_argument("assembly-file", help="File to be assembled")
 	parser.add_argument("-o", "--output", metavar="out-file", type=str, help="The path of the MIF file")
-	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=14)
+	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=16)
 	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
 	parser.add_argument("-f", "--format", metavar="format", type=str, help="The output format of the assembled mif file", choices=["altera","cadence"], default="cadence")
 	parser.add_argument("-z", "--zeros", action="store_true", help="Specify if uninitialized zeros should be exlicitly written")
