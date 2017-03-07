@@ -64,7 +64,7 @@ class MifLine(object):
 
 class Mif(object):
 
-	def __init__(self, _format, output, width, address, headers = [], writeZeros=False):
+	def __init__(self, _format, output, width, address, headers = [], stuffWith=None):
 		self.Format = _format
 		self.OutputFile = output
 		self.Width = width
@@ -73,7 +73,7 @@ class Mif(object):
 		self.DataRadix = "HEX"
 		self.Headers = headers
 		self.Data = []
-		self.WriteZeros = writeZeros
+		self.StuffWith = stuffWith
 		self.AddressesWritten = set()
 
 	def AddData(self, data):
@@ -122,10 +122,10 @@ class Mif(object):
 						self.AddAddress(mifLine.GetAddressAsInt())
 						addressCounter+=1
 				
-				if self.WriteZeros:
+				if self.StuffWith:
 					for a in range(0, self.Depth):
 						if a not in self.AddressesWritten:
-							_file.write(MifLine(data="0", address=a).ToString(self.Format)+'\n')
+							_file.write(MifLine(data=Common.NumToHexString(self.StuffWith).upper(), address=a).ToString(self.Format)+'\n')
 
 				if self.Format == "altera":
 					_file.write("\nEND;\n")

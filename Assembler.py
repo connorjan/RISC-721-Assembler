@@ -14,6 +14,7 @@ Author: Connor Goldberg
 """
 
 def main(args):
+
 	start = time.clock()
 
 	assemblyFile = args["assembly-file"]
@@ -33,8 +34,18 @@ def main(args):
 		else:
 			dataOutput = dataOutput + ".mif"
 
-	programMif = Mif.Mif(_format=args["format"], output=programOutput, width=args["width"], address=args["address_width"], headers=["Program memory for: %s" % assemblyFile], writeZeros=args["zeros"])
-	dataMif = Mif.Mif(_format=args["format"], output=dataOutput, width=args["width"], address=args["address_width"], headers=["Data memory for: %s" % assemblyFile], writeZeros=args["zeros"])
+	stuffMem = 0
+	if args["stuff"] is not None:
+		try:
+			if args["stuff"].upper().startswith("0X"):
+				stuffMem = int(args["stuff"], 16)
+			else:
+				stuffMem = int(args["stuff"])
+		except Exception as e:
+			Common.Error("Cannot stuff with: {}".format(args["stuff"]))
+
+	programMif = Mif.Mif(_format=args["format"], output=programOutput, width=args["width"], address=args["address_width"], headers=["Program memory for: %s" % assemblyFile], stuffWith=stuffMem)
+	dataMif = Mif.Mif(_format=args["format"], output=dataOutput, width=args["width"], address=args["address_width"], headers=["Data memory for: %s" % assemblyFile], stuffWith=stuffMem)
 
 	myParser = Parser.Parser(assemblyFile, args["address_width"], canInclude=True)	
 	myParser.Parse()
@@ -56,7 +67,7 @@ if __name__ == "__main__":
 	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=16)
 	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
 	parser.add_argument("-f", "--format", metavar="format", type=str, help="The output format of the assembled mif file", choices=["altera","cadence"], default="cadence")
-	parser.add_argument("-z", "--zeros", action="store_true", help="Specify if uninitialized zeros should be exlicitly written")
+	parser.add_argument("-s", "--stuff", metavar="stuff", type=str, help="Specify if uninitialized values should be exlicitly written")
 
 	args = vars(parser.parse_args())
 	main(args)
