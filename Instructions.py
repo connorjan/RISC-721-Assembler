@@ -13,23 +13,42 @@ def DecodeLine(line):
 		Common.Error(line, "Unknown instruction: %s" % mnemonic)
 
 	opCode = InstructionBase.InstructionList[mnemonic]
-	if (opCode == 0x0 or opCode == 0x1):
-		instruction = LoadStore(line, mnemonic, opCode)
-	elif (opCode == 0x2 or opCode == 0x3 or opCode == 0x4):
-		instruction = DataTransfer(line, mnemonic, opCode)
-	elif (opCode == 0x5 or opCode == 0x6 or opCode == 0x7):
-		instruction = FlowControl(line, mnemonic, opCode)
-	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x16):
-		instruction = LogicUnit(line, mnemonic, opCode)
-	elif (opCode == 0x10):
-		instruction = RotateShift(line, mnemonic, opCode)
-	elif (opCode == 0xFF):
-		instruction = Emulated(line, mnemonic, opCode)
-	else:
-		Common.Error(line, "Unknown opCode %i for instruction: %s" % (opCode, mnemonic))
+	instruction = GetInstructionClass(line, mnemonic, opCode)
 
 	instruction.Decode()
 	return instruction
+
+def Encode(word):
+	instruction = None
+	opCode = Common.SliceBits(word.Data, 31, 27)
+
+	if opCode not in InstructionBase.MnemonicList.keys():
+		Common.Error(word.Line, "Unknown opcode: %s" % opCode)
+
+	mnemonic = InstructionBase.MnemonicList[opCode]
+	
+	instruction = GetInstructionClass(word.Line, mnemonic, opCode)
+	instruction.MachineCodeAddress = word.Address
+	instruction.MachineCodeValue = word.Data
+	instruction.Encode()
+
+	return instruction
+
+def GetInstructionClass(line, mnemonic, opCode):
+	if (opCode == 0x0 or opCode == 0x1):
+		return LoadStore(line, mnemonic, opCode)
+	elif (opCode == 0x2 or opCode == 0x3 or opCode == 0x4):
+		return DataTransfer(line, mnemonic, opCode)
+	elif (opCode == 0x5 or opCode == 0x6 or opCode == 0x7):
+		return FlowControl(line, mnemonic, opCode)
+	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x16):
+		return LogicUnit(line, mnemonic, opCode)
+	elif (opCode == 0x10):
+		return RotateShift(line, mnemonic, opCode)
+	elif (opCode == 0xFF):
+		return Emulated(line, mnemonic, opCode)
+	else:
+		Common.Error(line, "Unknown opCode %i for instruction: %s" % (opCode, mnemonic))
 
 class LoadStore(InstructionBase.InstructionBase_):
 
@@ -69,6 +88,13 @@ class LoadStore(InstructionBase.InstructionBase_):
 
 		return self
 
+	def Encode(self):
+		self.Ri = Common.SliceBits(self.MachineCodeValue, 26, 22)
+		self.Rj = Common.SliceBits(self.MachineCodeValue, 21, 17)
+		self.Control = Common.SliceBits(self.MachineCodeValue, 16)
+		self.Address = Common.SliceBits(self.MachineCodeValue, 15, 0)
+		return self
+
 	def Assemble(self):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
@@ -76,6 +102,18 @@ class LoadStore(InstructionBase.InstructionBase_):
 		self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		self.MachineCode += Common.NumToBinaryString(self.Address, 16)
 		return self
+
+	def Disassemble(self):
+		operands = []
+		if InstructionBase.MnemonicList[self.OpCode] == "LD":
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+			operands.append(self.DecodeAddressOperand())
+		else: # if ST
+			operands.append(self.DecodeAddressOperand())
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+		self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
+		return self
+
 
 class DataTransfer(InstructionBase.InstructionBase_):
 
@@ -113,12 +151,31 @@ class DataTransfer(InstructionBase.InstructionBase_):
 			Common.Error(self.Line, "Error in Decode")
 		return self
 
+	def Encode(self):
+		self.Ri = Common.SliceBits(self.MachineCodeValue, 26, 22)
+		self.Rj = Common.SliceBits(self.MachineCodeValue, 21, 17)
+		self.Control = Common.SliceBits(self.MachineCodeValue, 16)
+		self.Constant = Common.SliceBits(self.MachineCodeValue, 15, 0)
+		return self
+
 	def Assemble(self):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Rj, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		self.MachineCode += Common.NumToBinaryString(self.Constant, 16)
+		return self
+
+	def Disassemble(self):
+		operands = []
+		if InstructionBase.MnemonicList[self.OpCode] == "CPY":
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+			operands.append(self.DecodeEitherOperand(self.RegisterField.Rj))
+		elif InstructionBase.MnemonicList[self.OpCode] == "PUSH":
+			operands.append(self.DecodeEitherOperand(self.RegisterField.Rj))
+		elif InstructionBase.MnemonicList[self.OpCode] == "POP":
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+		self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
 		return self
 
 class FlowControl(InstructionBase.InstructionBase_):
@@ -137,6 +194,19 @@ class FlowControl(InstructionBase.InstructionBase_):
 						"JNE"	: 0xE,
 						"JGE"	: 0x6,
 						"JL"	: 0x9 }
+
+	JumpConditionsMnemonic = {
+						0x0	:	"JMP",
+						0x8	:	"JC",
+						0x4	:	"JN",
+						0x2	:	"JV",
+						0x1	:	"JEQ",
+						0x7	:	"JNC",
+						0xB	:	"JNN",
+						0xD	:	"JNV",
+						0xE	:	"JNE",
+						0x6	:	"JGE",
+						0x9	:	"JL" }
 
 	def __init__(self, line, mnemonic, opCode):
 		super(FlowControl, self).__init__(line, mnemonic, opCode)
@@ -165,6 +235,13 @@ class FlowControl(InstructionBase.InstructionBase_):
 			# else: it is a CALL instruction
 		return self
 
+	def Encode(self):
+		self.Ri = Common.SliceBits(self.MachineCodeValue, 26, 22)
+		self.CNVZ = Common.SliceBits(self.MachineCodeValue, 21, 18)
+		self.Control = Common.SliceBits(self.MachineCodeValue, 16)
+		self.Address = Common.SliceBits(self.MachineCodeValue, 15, 0)
+		return self
+
 	def Assemble(self):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
@@ -173,6 +250,19 @@ class FlowControl(InstructionBase.InstructionBase_):
 		self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		self.MachineCode += Common.NumToBinaryString(self.Address, 16)
 		return self
+
+	def Disassemble(self):
+		operands = []
+		if InstructionBase.MnemonicList[self.OpCode] == "CALL":
+			self.NeedsLabelOperand = True
+		elif InstructionBase.MnemonicList[self.OpCode] != "RET":
+			self.Mnemonic = self.JumpConditionsMnemonic[self.CNVZ]
+			self.NeedsLabelOperand = True
+
+		if not self.NeedsLabelOperand:
+			self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
+		return self
+
 
 class LogicUnit(InstructionBase.InstructionBase_):
 
@@ -219,6 +309,16 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			self.GetEitherOperand(self.SplitLine[3], self.RegisterField.Rk)
 		return self
 
+	def Encode(self):
+		self.Ri = Common.SliceBits(self.MachineCodeValue, 26, 22)
+		self.Rj = Common.SliceBits(self.MachineCodeValue, 21, 17)
+		self.Control = Common.SliceBits(self.MachineCodeValue, 0)
+		if self.Control:
+			self.Constant = Common.SliceBits(self.MachineCodeValue, 16, 1)
+		else:
+			self.Rk = Common.SliceBits(self.MachineCodeValue, 16, 12)
+		return self
+
 	def Assemble(self):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		if (self.Ri != None):
@@ -234,6 +334,21 @@ class LogicUnit(InstructionBase.InstructionBase_):
 			self.MachineCode += Common.NumToBinaryString(self.Control, 1)
 		else:
 			self.MachineCode += Common.NumToBinaryString(0, 17)
+		return self
+
+	def Disassemble(self):
+		operands = []
+		if InstructionBase.MnemonicList[self.OpCode] == "CMP":
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Rj))
+			operands.append(self.DecodeEitherOperand(self.RegisterField.Rk))
+		elif InstructionBase.MnemonicList[self.OpCode] == "NOT":
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Rj))
+		else:
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+			operands.append(self.DecodeRegisterOperand(self.RegisterField.Rj))
+			operands.append(self.DecodeEitherOperand(self.RegisterField.Rk))
+		self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
 		return self
 
 class RotateShift(InstructionBase.InstructionBase_):
@@ -253,6 +368,16 @@ class RotateShift(InstructionBase.InstructionBase_):
 					"RLC"	: 0x7,
 					"RLCC"	: 0x7
 				}
+
+	ConditionsMnemonic = {
+					0x0	:	"SRL",
+					0x1	:	"SLL",
+					0x2	:	"SRA",
+					0x4	:	"RTR",
+					0x5	:	"RTL",
+					0x6	:	"RRC",
+					0x7	:	"RLC",
+	}
 
 	def __init__(self, line, mnemonic, opCode):
 		super(RotateShift, self).__init__(line, mnemonic, opCode)
@@ -274,6 +399,17 @@ class RotateShift(InstructionBase.InstructionBase_):
 			Common.Error(self.Line, "Error in Decode")
 		return self
 
+	def Encode(self):
+		self.Ri = Common.SliceBits(self.MachineCodeValue, 26, 22)
+		self.Rj = Common.SliceBits(self.MachineCodeValue, 21, 17)
+		self.Control = Common.SliceBits(self.MachineCodeValue, 0)
+		if self.Control:
+			self.Constant = Common.SliceBits(self.MachineCodeValue, 16, 11)
+		else:
+			self.Rk = Common.SliceBits(self.MachineCodeValue, 16, 12)
+		self.Condition = Common.SliceBits(self.MachineCodeValue, 3, 1)
+		return self
+
 	def Assemble(self):
 		self.MachineCode += Common.NumToBinaryString(self.OpCode, 5)
 		self.MachineCode += Common.NumToBinaryString(self.Ri, 5)
@@ -290,6 +426,16 @@ class RotateShift(InstructionBase.InstructionBase_):
 		else:
 			self.MachineCode += Common.NumToBinaryString(1, 1)
 		return self
+
+	def Disassemble(self):
+		operands = []
+		self.Mnemonic = self.ConditionsMnemonic[self.Condition]
+		operands.append(self.DecodeRegisterOperand(self.RegisterField.Ri))
+		operands.append(self.DecodeRegisterOperand(self.RegisterField.Rj))
+		operands.append(self.DecodeEitherOperand(self.RegisterField.Rk))
+		self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
+		return self
+
 
 class Emulated(InstructionBase.InstructionBase_):
 
@@ -341,8 +487,8 @@ class Emulated(InstructionBase.InstructionBase_):
 			self.Constant = 1
 		elif self.Mnemonic == "NOP":
 			self.OpCode = InstructionBase.InstructionList["CPY"]
-			self.Ri = 1
-			self.Rj = 1
+			self.Ri = 0
+			self.Rj = 0
 		else:
 			Common.Error(self.Line, "Error in Decode")
 		return self

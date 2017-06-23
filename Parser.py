@@ -19,8 +19,24 @@ class Line(object):
 	def __repr__(self):
 		return str(self)
 
+
+class BinaryData(object):
+
+	def __init__(self, address, data):
+		self.Address = address
+		self.Data = data
+		self.Line = None # a ref to the original Line object it was parsed from
+
+	def __str__(self):
+		return "@{:08X} {:X}".format(self.Address, self.Data)
+
+	def __repr__(self):
+		return "{}(0x{:X}, 0x{:X})".format(self.__class__.__name__, self.Address, self.Data)
+
+
 class Assembly(object):
 
+	CommentString = "//"
 	InterruptVectorTable = {}
 	AddressSpaceSize = None
 	VectorTableStartAddress = None
@@ -110,6 +126,40 @@ class Assembly(object):
 				string = string.replace(directive, value)
 		return string
 
+
+class Disassembly(object):
+
+	def __init__(self):
+		self.Original = []
+		self.WithoutComments = []
+		self.Binary = []
+		self.Instructions = OrderedDict()
+
+	def Encode(self):
+		for word in self.Binary:
+			instruction = Instructions.Encode(word)
+			self.Instructions[word.Address] = instruction
+
+	def Write(self, filePath, headers=[]):
+		with open(filePath, "w+") as _file:
+			_file.seek(0)
+			_file.truncate() # Clears out the file if it exists
+			_file.write("{} Disassembled for cjg_risc by Connor Goldberg\n".format(Assembly.CommentString))
+			for line in headers:
+				_file.write("{} {}\n".format(Assembly.CommentString, line))
+			_file.write("\n")
+			_file.write(".code\n")
+
+			for address, instruction in self.Instructions.iteritems():
+				line = "{:12}{:28}{} {}".format(instruction.Label+':' if instruction.Label else '',
+										 instruction.DisassembledString,
+										 Assembly.CommentString,
+										 instruction.Line.String)
+				_file.write("{}\n".format(line))
+
+			_file.write(".endcode\n")
+
+
 class Parser(object):
 
 	def __init__(self, assemblyFilePath, addressWidth, canInclude = False, label=None):
@@ -196,8 +246,9 @@ class Parser(object):
 		self.ResolveAddresses()
 		self.SetLabelAddresses()
 
-	def RemoveComments(self):
-		pass1 =  [line for line in self.Assembly.Original if not line.String.startswith(";") and not line.String.startswith("//")] # Removes all lines starting with semicolons
+	@staticmethod
+	def RemoveComments(contents):
+		pass1 =  [line for line in contents if not line.String.startswith(";") and not line.String.startswith("//")] # Removes all lines starting with semicolons
 		pass2 = []
 		for line in pass1:
 			if ';' in line.String:
@@ -240,7 +291,7 @@ class Parser(object):
 
 	def Parse(self):
 		self.FileToLines(self.AssemblyFilePath)
-		self.Assembly.WithoutComments = self.RemoveComments()
+		self.Assembly.WithoutComments = Parser.RemoveComments(self.Assembly.Original)
 		self.Separate()
 		self.Assembly.Decode()
 		if self.CanInclude:
@@ -288,3 +339,71 @@ class Parser(object):
 				else:
 					Common.Error(instruction.Line, "Could not find destination label for: %s" % instruction.LabelOperand)
 		return self.Assembly.Instructions
+
+
+class DisassemblyParser(object):
+
+	def __init__(self, mifFilePath, mifFormat):
+		self.MifFilePath = mifFilePath
+		if mifFormat != "cadence":
+			Common.Error("Only the cadence mif format is currently supported")
+		self.MifFormat = mifFormat
+
+		self.Disassembly = Disassembly()
+
+	def Parse(self):
+		self.Disassembly.Original = self.FileToLines()
+		self.Disassembly.WithoutComments = Parser.RemoveComments(self.Disassembly.Original)
+		self.Disassembly.Binary = self.SplitToBinary(self.Disassembly.WithoutComments)
+		self.Disassembly.Encode()
+		self.Disassemble()
+		return self.Disassembly
+
+	def Disassemble(self):
+		# Pass 1
+		for address, instruction in self.Disassembly.Instructions.iteritems():
+			instruction.Disassemble()
+
+		# Pass 2 to handle labels
+		labelCount = 0
+		for address, instruction in self.Disassembly.Instructions.iteritems():
+			if instruction.NeedsLabelOperand:
+				if instruction.Address not in self.Disassembly.Instructions.keys():
+					Common.Error(instruction.Line, "Cannot find instruction at destination address: 0x{:X}".format(instruction.Address))
+				destinationInstruction = self.Disassembly.Instructions[instruction.Address]
+				if not destinationInstruction.Label:
+					destinationInstruction.Label = "label_{}".format(labelCount)
+					labelCount += 1
+				instruction.FixupLabel(destinationInstruction.Label)
+
+	def FileToLines(self):
+		lines = []
+		if os.path.isfile(self.MifFilePath):
+			with open(self.MifFilePath) as _file:
+				lineCount = 1
+				for line in _file:
+					lines.append(Line(os.path.basename(self.MifFilePath), lineCount, line.strip()))
+					lineCount+=1
+			return lines
+		else: 
+			return []
+
+	@staticmethod
+	def SplitToBinary(contents):
+		dataList = []
+		for line in contents:
+			split = line.String.split()
+			try:
+				address = int(split[0].strip('@'), 16)
+			except Exception as e:
+				Common.Error(line, "Could not decode address: {}".format(split[0]))
+
+			try:
+				data = int(split[1], 16)
+			except Exception as e:
+				Common.Error(line, "Could not decode address: {}".format(split[0]))
+
+			bd = BinaryData(address=address, data=data)
+			bd.Line = line
+			dataList.append(bd)
+		return dataList

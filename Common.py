@@ -47,6 +47,28 @@ def ExprToHexString(expr, line=None, padding=0):
 	else:
 		return NumToHexString(Evaluate(expr,line), line=line, padding=padding)
 
+def ExtractBits(binary, width, msb):
+	"""
+	Extract out bits from a number
+	binary - the number
+	width - number of bits wide you want to extract
+	msb - the most significant bit of the slice to extract
+	ex. ExtractBits(0xF000, 4, 15) = 0xF
+	ex. ExtractBits(0x7800, 4, 14) = 0xF
+	"""
+	return (((2**(width))-1 << msb-width+1) & binary) >> msb-width+1
+
+def SliceBits(binary, msb, lsb=None):
+	"""
+	Extract out bits from a number
+	binary - the number
+	width - number of bits wide you want to extract
+	msb - the most significant bit of the slice to extract
+	ex. ExtractBits(0xF000, 4, 15) = 0xF
+	ex. ExtractBits(0x7800, 4, 14) = 0xF
+	"""
+	return ExtractBits(binary, ((msb-lsb+1) if lsb is not None else 1), msb)
+
 def FileToList(filePath):
 	if os.path.isfile(filePath):
 		with open(filePath) as _file:

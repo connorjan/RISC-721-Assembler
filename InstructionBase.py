@@ -8,11 +8,17 @@ class InstructionBase_(object):
 
 	def __init__(self, line, mnemonic, opCode):
 		self.Line = line
-		self.Label = None
 		self.Mnemonic = mnemonic
-		self.MachineCode = ""
-		self.NeedsLabelAddress = False
 		self.OpCode = opCode
+		
+		self.DisassembledString = ""
+		self.IsDestination = False
+		self.Label = None
+		self.MachineCode = ""
+		self.MachineCodeAddress = None
+		self.MachineCodeValue = None
+		self.NeedsLabelAddress = False
+		self.NeedsLabelOperand = False
 		self.SplitLine = [piece for piece in re.split(" |,|\t", self.Line.String) if piece != '']
 		if self.SplitLine[0].endswith(':'):
 			self.Label = self.SplitLine[0][0:len(self.SplitLine[0])-1]
@@ -24,36 +30,93 @@ class InstructionBase_(object):
 	def Decode(self):
 		Common.Error(self.Line, "This instruction did not implement the method: Decode")
 
+	def Disassemble(self):
+		Common.Error(self.Line, "This instruction did not implement the method: Disassemble")
+
+	def Encode(self):
+		Common.Error(self.Line, "This instruction did not implement the method: Encode")
+
+	@staticmethod
+	def BuildDisassembledString(mnemonic, operands):
+		if len(operands) == 0:
+			return "{}".format(mnemonic)
+		elif len(operands) == 1:
+			return "{:7} {}".format(mnemonic, operands[0])
+		elif len(operands) == 2:
+			return "{:7} {}, {}".format(mnemonic, operands[0], operands[1])
+		elif len(operands) == 3:
+			return "{:7} {}, {}, {}".format(mnemonic, operands[0], operands[1], operands[2])
+		else:
+			Common.Error(self.Line, "Trying to build dissassembled string with invalid number of operands")
+
+	def DecodeAddressOperand(self):
+		if self.Rj and not self.Control:
+			insert = "R{}+0x{:X}".format(self.Rj, self.Address)
+		elif self.Rj and self.Control:
+			insert = "R{}".format(self.Rj)
+		elif not self.Rj and not self.Control:
+			insert = "PC+0x{:X}".format(self.Address)
+		elif not self.Rj and self.Control:
+			insert = "0x{:X}".format(self.Address)
+		return "M[{}]".format(insert)
+
+	def DecodeRegisterOperand(self, registerField):
+		if registerField == self.RegisterField.Ri:
+			reg = self.Ri
+		elif registerField == self.RegisterField.Rj:
+			reg = self.Rj
+		elif registerField == self.RegisterField.Rk:
+			reg = self.Rk
+		return "R{}".format(reg)
+
+	def DecodeConstantOperand(self):
+		return "0x{:X}".format(self.Constant)
+
+	def DecodeEitherOperand(self, registerField):
+		if self.Control:
+			return self.DecodeConstantOperand()
+		else:
+			return self.DecodeRegisterOperand(registerField)
+
+	def FixupLabel(self, label):
+		if not self.NeedsLabelOperand:
+			Common.Error(self.Line, "This instruction does not need a label")
+		else:
+			operands = []
+			operands.append(label)
+			self.DisassembledString = self.BuildDisassembledString(self.Mnemonic, operands)
+			self.NeedsLabelOperand = False
+
 	def GetAddressOperand(self, arg):
 		# strip M[], figure out what the control is, do stuff based off of the control.
-		operand = arg.replace("M[",'').replace(']','')
+		operand = arg.upper().replace("M[",'').replace(']','')
 		if '+' in operand:
 			self.Control = 0
 			operand = operand.split('+')
-			if operand[0] == "PC":
+			if operand[0].upper() == "PC":
 				# PC Relative
 				self.Rj = 0
 				self.Address = int(operand[1],0)
-			elif operand[1] == "PC":
+			elif operand[1].upper() == "PC":
 				# PC Relative
 				self.Rj = 0
 				self.Address = int(operand[0],0)
-			elif operand[0].startswith("0x"):
+			elif operand[0].upper().startswith("0X"):
 				# Indexed
 				self.Address = int(operand[0],0)
 				self.GetRegisterOperand(operand[1],self.RegisterField.Rj)
-			elif operand[1].startswith("0x"):
+			elif operand[1].upper().startswith("0X"):
 				# Indexed
 				self.Address = int(operand[1],0)
 				self.GetRegisterOperand(operand[0],self.RegisterField.Rj)
 			else:
 				Common.Error(self.Line, "Invalid operand for address: %s" % arg)
 		else:
-			if operand.startswith("R"):
+			if operand.upper().startswith("R"):
 				# Register direct
 				self.Control = 1
 				self.GetRegisterOperand(operand, self.RegisterField.Rj)
-			elif operand == "PC":
+			elif operand.upper() == "PC":
 				# PC Relative with no offset
 				self.Control = 0
 				self.Rj = 0
@@ -76,13 +139,13 @@ class InstructionBase_(object):
 		self.Control = 1
 
 	def GetEitherOperand(self, operand, registerField):
-		if operand[0] == 'R':
+		if operand[0].upper() == 'R':
 			self.GetRegisterOperand(operand, registerField)
 		else:
 			self.GetConstantOperand(operand)
 
 	def GetRegisterOperand(self, operand, registerField):
-		if operand[0] != 'R' or not operand[1:].isdigit():
+		if operand[0].upper() != 'R' or not operand[1:].isdigit():
 			Common.Error(self.Line, "Invalid operand for register: %s" % operand)
 		elif registerField == self.RegisterField.Ri:
 			self.Ri = int(operand[1:])
@@ -165,3 +228,31 @@ InstructionList = {	"LD" 	: 0x00,
 					"SETC" 	: 0xFF,
 					"NOP" 	: 0xFF
 					}
+
+MnemonicList = {	0x00 : "LD",
+				 	0x01 : "ST",
+				 	0x02 : "CPY",
+				 	0x03 : "PUSH",
+				 	0x04 : "POP",
+				 	0x05 : "JMP",
+				 	0x06 : "CALL",
+				 	0x07 : "RET",
+				 	0x08 : "ADD",
+				 	0x09 : "SUB",
+				 	0x0A : "CMP",
+				 	0x0B : "NOT",
+				 	0x0C : "AND",
+				 	0x0D : "BIC",
+				 	0x0E : "OR",
+				 	0x0F : "XOR",
+				 	0x10 : "RS",
+				 	0x11 : "FA",
+				 	0x12 : "FS",
+				 	0x13 : "FM",
+				 	0x14 : "FD",
+				 	0x15 : "FTI",
+				 	0x16 : "ITF",
+				 	0x1A : "MUL",
+				 	0x1B : "DIV",
+				 	0x1F : "INT",
+				}
