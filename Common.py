@@ -47,27 +47,18 @@ def ExprToHexString(expr, line=None, padding=0):
 	else:
 		return NumToHexString(Evaluate(expr,line), line=line, padding=padding)
 
-def ExtractBits(binary, width, msb):
+def SliceBits(num, msb, lsb=None):
 	"""
-	Extract out bits from a number
-	binary - the number
-	width - number of bits wide you want to extract
-	msb - the most significant bit of the slice to extract
-	ex. ExtractBits(0xF000, 4, 15) = 0xF
-	ex. ExtractBits(0x7800, 4, 14) = 0xF
+	Slice bits from an integer from the msb to the lsb (inclusive) and 0-indexed
+	If no lsb is provided it will only grab the one bit at the msb specified
+	num - the number
+	msb - the most significant bit to keep
+	lsb - the least significant bit to keep
+	ex. SliceBits(0xF000, 15, 12) = 0xF
+	ex. SliceBits(0x7800, 14, 11) = 0xF
 	"""
-	return (((2**(width))-1 << msb-width+1) & binary) >> msb-width+1
-
-def SliceBits(binary, msb, lsb=None):
-	"""
-	Extract out bits from a number
-	binary - the number
-	width - number of bits wide you want to extract
-	msb - the most significant bit of the slice to extract
-	ex. ExtractBits(0xF000, 4, 15) = 0xF
-	ex. ExtractBits(0x7800, 4, 14) = 0xF
-	"""
-	return ExtractBits(binary, ((msb-lsb+1) if lsb is not None else 1), msb)
+	width = (msb-lsb+1) if lsb is not None else 1
+	return (((2**(width))-1 << msb-width+1) & num) >> msb-width+1
 
 def FileToList(filePath):
 	if os.path.isfile(filePath):
