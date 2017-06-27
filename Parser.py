@@ -151,7 +151,7 @@ class Disassembly(object):
 				newData = 0
 				for j in range(0, piecesToJoin):
 					newData |= ((self.Binary[i+j].Data & (2**self.MemoryWidth-1)) << j*self.MemoryWidth)
-				bd = BinaryData(address=self.Binary[i], data=newData)
+				bd = BinaryData(address=self.Binary[i].Address, data=newData)
 				bd.Line = self.Binary[i].Line
 				newBinary.append(bd)
 		self.Binary = newBinary
