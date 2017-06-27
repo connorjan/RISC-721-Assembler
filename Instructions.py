@@ -59,6 +59,14 @@ class LoadStore(InstructionBase.InstructionBase_):
 		self.Control = None
 		self.Address = 0
 
+	def __str__(self):
+		s = "Instruction = {}\n".format(self.Mnemonic)
+		s += "\tRi = {}\n".format(self.Ri)
+		s += "\tRj = {}\n".format(self.Rj)
+		s += "\tControl = {}\n".format(self.Control)
+		s += "\tAddress = 0x{:04X}".format(self.Address)
+		return s
+
 	def Decode(self):
 		if len(self.SplitLine) == 4 or len(self.SplitLine) == 5:
 			if self.Mnemonic == "LD":
@@ -123,6 +131,14 @@ class DataTransfer(InstructionBase.InstructionBase_):
 		self.Rj = 0
 		self.Control = 0
 		self.Constant = 0
+
+	def __str__(self):
+		s = "Instruction = {}\n".format(self.Mnemonic)
+		s += "\tRi = {}\n".format(self.Ri)
+		s += "\tRj = {}\n".format(self.Rj)
+		s += "\tControl = {}\n".format(self.Control)
+		s += "\tConstant = 0x{:04X}".format(self.Constant)
+		return s
 
 	def Decode(self):
 		if self.Mnemonic == "CPY":
@@ -216,6 +232,14 @@ class FlowControl(InstructionBase.InstructionBase_):
 		self.Address = None
 
 		self.LabelOperand = None
+
+	def __str__(self):
+		s = "Instruction = {}\n".format(self.JumpConditionsMnemonic[self.CNVZ])
+		s += "\tRi = {}\n".format(self.Ri)
+		s += "\tCNVZ = 0b{:04b}\n".format(self.CNVZ)
+		s += "\tControl = {}\n".format(self.Control)
+		s += "\tAddress = 0x{:04X}".format(self.Address)
+		return s
 		
 	def Decode(self):
 		if self.Mnemonic == "RET" or self.Mnemonic == "RETI" :
@@ -273,6 +297,16 @@ class LogicUnit(InstructionBase.InstructionBase_):
 		self.Rk = None
 		self.Control = None
 		self.Constant = None
+
+	def __str__(self):
+		s = "Instruction = {}\n".format(self.Mnemonic)
+		s += "\tRi = {}\n".format(self.Ri)
+		s += "\tRj = {}\n".format(self.Rj)
+		s += "\tRk = {}\n".format(self.Rk)
+		s += "\tControl = {}".format(1 if self.Control else 0)
+		if self.Constant is not None:
+			s += "\n\tConstant = 0x{:04X}".format(self.Constant)
+		return s
 
 	def Decode(self):
 		if self.Mnemonic == "CMP":
@@ -386,6 +420,15 @@ class RotateShift(InstructionBase.InstructionBase_):
 		self.Rk = None
 		self.Constant = None
 		self.Condition = 0	
+
+	def __str__(self):
+		s = "Instruction = {}\n".format(self.ConditionsMnemonic[self.Condition])
+		s += "\tRi = {}\n".format(self.Ri)
+		s += "\tRj = {}\n".format(self.Rj)
+		s += "\tRk = {}\n".format(self.Rk)
+		s += "\tConstant = 0x{:04X}\n".format(self.Constant)
+		s += "\tCondition = {}".format(self.Condition)
+		return s
 
 	def Decode(self):
 		if len(self.SplitLine) != 4:

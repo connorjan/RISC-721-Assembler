@@ -129,7 +129,8 @@ class Assembly(object):
 
 class Disassembly(object):
 
-	def __init__(self):
+	def __init__(self, debug):
+		self.Debug = debug
 		self.Original = []
 		self.WithoutComments = []
 		self.Binary = []
@@ -343,13 +344,14 @@ class Parser(object):
 
 class DisassemblyParser(object):
 
-	def __init__(self, mifFilePath, mifFormat):
+	def __init__(self, mifFilePath, mifFormat, debug):
 		self.MifFilePath = mifFilePath
 		if mifFormat != "cadence":
 			Common.Error("Only the cadence mif format is currently supported")
 		self.MifFormat = mifFormat
+		self.Debug = debug
 
-		self.Disassembly = Disassembly()
+		self.Disassembly = Disassembly(self.Debug)
 
 	def Parse(self):
 		self.Disassembly.Original = self.FileToLines()
@@ -363,12 +365,16 @@ class DisassemblyParser(object):
 		# Pass 1
 		for address, instruction in self.Disassembly.Instructions.iteritems():
 			instruction.Disassemble()
+			if (self.Debug):
+				print "@{:08} {:08X}".format(address, instruction.MachineCodeValue)
+				print instruction
 
 		# Pass 2 to handle labels
 		labelCount = 0
 		for address, instruction in self.Disassembly.Instructions.iteritems():
 			if instruction.NeedsLabelOperand:
 				if instruction.Address not in self.Disassembly.Instructions.keys():
+					print instruction
 					Common.Error(instruction.Line, "Cannot find instruction at destination address: 0x{:X}".format(instruction.Address))
 				destinationInstruction = self.Disassembly.Instructions[instruction.Address]
 				if not destinationInstruction.Label:
