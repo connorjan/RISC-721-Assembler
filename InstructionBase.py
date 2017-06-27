@@ -51,13 +51,13 @@ class InstructionBase_(object):
 
 	def DecodeAddressOperand(self):
 		if self.Rj and not self.Control:
-			insert = "R{}+0x{:X}".format(self.Rj, self.Address)
+			insert = "R{}+{}".format(self.Rj, self.PrintConstant(self.Address))
 		elif self.Rj and self.Control:
 			insert = "R{}".format(self.Rj)
 		elif not self.Rj and not self.Control:
-			insert = "PC+0x{:X}".format(self.Address)
+			insert = "PC+{}".format(self.PrintConstant(self.Address))
 		elif not self.Rj and self.Control:
-			insert = "0x{:X}".format(self.Address)
+			insert = "{}".format(self.PrintConstant(self.Address))
 		return "M[{}]".format(insert)
 
 	def DecodeRegisterOperand(self, registerField):
@@ -70,13 +70,17 @@ class InstructionBase_(object):
 		return "R{}".format(reg)
 
 	def DecodeConstantOperand(self):
-		return "0x{:X}".format(self.Constant)
+		return "{}".format(self.PrintConstant(self.Constant))
 
 	def DecodeEitherOperand(self, registerField):
 		if self.Control:
 			return self.DecodeConstantOperand()
 		else:
 			return self.DecodeRegisterOperand(registerField)
+
+	@staticmethod
+	def PrintConstant(constant):
+		return "{}".format(constant)
 
 	def FixupLabel(self, label):
 		if not self.NeedsLabelOperand:
