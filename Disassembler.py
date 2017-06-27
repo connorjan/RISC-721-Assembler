@@ -28,7 +28,7 @@ def main(args):
 		programOutput = output
 		split = os.path.splitext(output)
 
-	myParser = Parser.DisassemblyParser(mifFilePath=mifFile, mifFormat=args["format"], debug=args["debug"])
+	myParser = Parser.DisassemblyParser(mifFilePath=mifFile, mifFormat=args["format"], width=args["width"], memoryWidth=args["memory_width"], debug=args["debug"])
 	myParser.Parse()
 
 	myParser.Disassembly.Write(programOutput, [" ".join(sys.argv)])
@@ -44,8 +44,8 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Assembler for RISC_721 by Connor Goldberg")
 	parser.add_argument("mif-file", help="File to be disassembled")
 	parser.add_argument("-o", "--output", metavar="out-file", type=str, help="The path of the ASM file")
-	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=16)
-	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
+	parser.add_argument("-m", "--memory_width", metavar="memory_width", type=int, help="The width of a word in memory in bits (default = 8)", default=8)
+	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words in bits (default = 32)", default=32)
 	parser.add_argument("-f", "--format", metavar="format", type=str, help="The input format of the assembled mif file", choices=["altera","cadence"], default="cadence")
 	parser.add_argument("-d", "--debug", action="store_true", help="Output debug information")
 

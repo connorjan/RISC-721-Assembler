@@ -44,10 +44,10 @@ def main(args):
 		except Exception as e:
 			Common.Error("Cannot stuff with: {}".format(args["stuff"]))
 
-	programMif = Mif.Mif(_format=args["format"], output=programOutput, width=args["width"], address=args["address_width"], headers=["Program memory for: %s" % assemblyFile], stuffWith=stuffMem)
-	dataMif = Mif.Mif(_format=args["format"], output=dataOutput, width=args["width"], address=args["address_width"], headers=["Data memory for: %s" % assemblyFile], stuffWith=stuffMem)
+	programMif = Mif.Mif(format_=args["format"], output=programOutput, width=args["width"], addressWidth=args["address_width"], memoryWidth=args["memory_width"], headers=["Program memory for: %s" % assemblyFile], stuffWith=stuffMem)
+	dataMif = Mif.Mif(format_=args["format"], output=dataOutput, width=args["width"], addressWidth=args["address_width"], memoryWidth=args["memory_width"], headers=["Data memory for: %s" % assemblyFile], stuffWith=stuffMem)
 
-	myParser = Parser.Parser(assemblyFile, args["address_width"], canInclude=True)	
+	myParser = Parser.Parser(assemblyFile, width=args["width"], addressWidth=args["address_width"], memoryWidth=args["memory_width"], canInclude=True)	
 	myParser.Parse()
 
 	programMif.AddData(myParser.GetAssemblyData()).Write()
@@ -65,7 +65,8 @@ if __name__ == "__main__":
 	parser.add_argument("assembly-file", help="File to be assembled")
 	parser.add_argument("-o", "--output", metavar="out-file", type=str, help="The path of the MIF file")
 	parser.add_argument("-a", "--address_width", metavar="address-width", type=int, help="The width of the address bus", default=16)
-	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words", default=32)
+	parser.add_argument("-m", "--memory_width", metavar="memory-width", type=int, help="The width of a word in memory in bits (default = 8)", default=8)
+	parser.add_argument("-w", "--width", metavar="width", type=int, help="The width of instruction words in bits (default = 32)", default=32)
 	parser.add_argument("-f", "--format", metavar="format", type=str, help="The output format of the assembled mif file", choices=["altera","cadence"], default="cadence")
 	parser.add_argument("-s", "--stuff", metavar="stuff", type=str, help="Specify if uninitialized values should be exlicitly written")
 

@@ -129,7 +129,9 @@ class Assembly(object):
 
 class Disassembly(object):
 
-	def __init__(self, debug):
+	def __init__(self, width, memoryWidth, debug):
+		self.Width = width
+		self.MemoryWidth = memoryWidth
 		self.Debug = debug
 		self.Original = []
 		self.WithoutComments = []
@@ -140,6 +142,19 @@ class Disassembly(object):
 		for word in self.Binary:
 			instruction = Instructions.Encode(word)
 			self.Instructions[word.Address] = instruction
+
+	def MergeBinary(self):
+		piecesToJoin = self.Width / self.MemoryWidth
+		if piecesToJoin > 1:
+			newBinary = []
+			for i in range(0, len(self.Binary), piecesToJoin):
+				newData = 0
+				for j in range(0, piecesToJoin):
+					newData |= ((self.Binary[i+j].Data & (2**self.MemoryWidth-1)) << j*self.MemoryWidth)
+				bd = BinaryData(address=self.Binary[i], data=newData)
+				bd.Line = self.Binary[i].Line
+				newBinary.append(bd)
+		self.Binary = newBinary
 
 	def Write(self, filePath, headers=[]):
 		with open(filePath, "w+") as _file:
@@ -163,10 +178,12 @@ class Disassembly(object):
 
 class Parser(object):
 
-	def __init__(self, assemblyFilePath, addressWidth, canInclude = False, label=None):
+	def __init__(self, assemblyFilePath, width, addressWidth, memoryWidth, canInclude = False, label=None):
 		self.AssemblyFilePath = assemblyFilePath
 		self.Assembly = Assembly(addressWidth)
+		self.Width = width
 		self.AddressWidth = addressWidth
+		self.MemoryWidth = memoryWidth
 		self.CanInclude = canInclude
 		self.Label = label
 		self.LabelTable = {}
@@ -200,7 +217,7 @@ class Parser(object):
 			if parser.Label != None and parser.Assembly.Instructions:
 				lines.append(Mif.MifLine(comment="----- %s -----" % parser.Label.String))
 			for instruction in parser.Assembly.Instructions:
-				data = Common.NumToHexString(int(instruction.MachineCode, 2), 8)
+				data = int(instruction.MachineCode, 2)
 				comment = instruction.Line.String.strip().replace('\t',' ')
 				lines.append(Mif.MifLine(data=data, comment=comment, instruction=instruction))
 		return lines
@@ -214,7 +231,7 @@ class Parser(object):
 					continue
 				else:
 					Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
-			lines.append(Mif.MifLine(data=data[0], address=address, comment="%s:%s" % (data[1].FileName, data[1].Number)))
+			lines.append(Mif.MifLine(data=int(data[0],16), address=int(address,16), comment="%s:%s" % (data[1].FileName, data[1].Number)))
 			addresses[address] = data[0]
 		for parser in self.IncludeParsers:
 			for address, data in parser.Assembly.Constants.iteritems():
@@ -223,7 +240,7 @@ class Parser(object):
 						continue
 					else:
 						Common.Error(data[1], "Duplicate constant found at address: 0x%s. Address already assigned to: 0x%s" % (address, addresses[address]))
-				lines.append(Mif.MifLine(data=data[0], address=address, comment="%s:%s" % (data[1].FileName, data[1].Number)))
+				lines.append(Mif.MifLine(data=int(data[0],16), address=int(address,16), comment="%s:%s" % (data[1].FileName, data[1].Number)))
 				addresses[address] = data[0]
 		return lines
 
@@ -236,7 +253,7 @@ class Parser(object):
 		return lines
 
 	def MergeIncludes(self):
-		addressCounter = len(self.Assembly.Instructions)
+		addressCounter = len(self.Assembly.Instructions) * (self.Width / self.MemoryWidth)
 		for parser in self.IncludeParsers:
 			label = parser.Label.String.split()[0]
 			if label in self.LabelTable.keys():
@@ -329,7 +346,7 @@ class Parser(object):
 					if instruction.Label in self.LabelTable.keys():
 						Common.Error(instruction.Line, "Found previous declaration of label: %s" % instruction.Label)
 					self.LabelTable[instruction.Label] = addressCounter
-			addressCounter += 1
+			addressCounter += self.Width / self.MemoryWidth
 		return addressCounter
 
 	def SetLabelAddresses(self):
@@ -344,19 +361,22 @@ class Parser(object):
 
 class DisassemblyParser(object):
 
-	def __init__(self, mifFilePath, mifFormat, debug):
+	def __init__(self, mifFilePath, mifFormat, width, memoryWidth, debug):
 		self.MifFilePath = mifFilePath
 		if mifFormat != "cadence":
 			Common.Error("Only the cadence mif format is currently supported")
 		self.MifFormat = mifFormat
+		self.Width = width
+		self.MemoryWidth = memoryWidth
 		self.Debug = debug
 
-		self.Disassembly = Disassembly(self.Debug)
+		self.Disassembly = Disassembly(width=self.Width, memoryWidth=self.MemoryWidth, debug=self.Debug)
 
 	def Parse(self):
 		self.Disassembly.Original = self.FileToLines()
 		self.Disassembly.WithoutComments = Parser.RemoveComments(self.Disassembly.Original)
 		self.Disassembly.Binary = self.SplitToBinary(self.Disassembly.WithoutComments)
+		self.Disassembly.MergeBinary()
 		self.Disassembly.Encode()
 		self.Disassemble()
 		return self.Disassembly
@@ -407,7 +427,7 @@ class DisassemblyParser(object):
 			try:
 				data = int(split[1], 16)
 			except Exception as e:
-				Common.Error(line, "Could not decode address: {}".format(split[0]))
+				Common.Error(line, "Could not decode data: {}".format(split[1]))
 
 			bd = BinaryData(address=address, data=data)
 			bd.Line = line

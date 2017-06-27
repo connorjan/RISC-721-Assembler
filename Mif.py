@@ -23,7 +23,7 @@ class MifLine(object):
 			print e
 			raise e
 
-	def Altera(self):
+	def Altera(self, wordWidth, memWidth):
 		string = ""
 		if self.Address is not None:
 			if type(self.Address) is str:
@@ -37,39 +37,36 @@ class MifLine(object):
 
 		return string
 
-	def Cadence(self):
-		string = "@"
-		if self.Address is not None:
-			if type(self.Address) is str:
-				string += self.Address.replace("0x",'').zfill(4)
-			else:
-				string += Common.NumToHexString(self.Address, 4)
-		if self.Data is not None:
-			string += "    {}".format(self.Data.zfill(8))
-		if self.Comment:
-			string += " // {}".format(self.Comment)
+	def Cadence(self, wordWidth, memWidth):
+		strings = []
+		piecesToSplit = wordWidth / memWidth
+		for i in range(0, piecesToSplit):
+			if self.Data is not None:
+				dataToWrite = (self.Data >> i*memWidth) & ((2**memWidth)-1)
+			strings.append("{}    {} {}".format("@{:04X}".format(self.Address+i) if self.Address is not None else "",
+								   "{:0{pad}X}".format(dataToWrite, pad=memWidth/4) if self.Data is not None else "",
+								   "// {}".format(self.Comment) if self.Comment and i==0 else ""))
 
-		return string
+		return "\n".join(strings)
 
-	def ToString(self, _format):
-		if _format == "altera":
-			return self.Altera()
-		elif _format == "cadence":
-			return self.Cadence()
+	def ToString(self, format_, wordWidth, memWidth):
+		if format_ == "altera":
+			return self.Altera(wordWidth, memWidth)
+		elif format_ == "cadence":
+			return self.Cadence(wordWidth, memWidth)
 		else:
 			Common.Error(errorMsg="Invalid format")
 
-	def __str__(self):
-		return None
 
 class Mif(object):
 
-	def __init__(self, _format, output, width, address, headers = [], stuffWith=None):
-		self.Format = _format
+	def __init__(self, format_, output, width, addressWidth, memoryWidth, headers = [], stuffWith=None):
+		self.Format = format_
 		self.OutputFile = output
 		self.Width = width
-		self.Address = address
-		self.Depth = 2**address
+		self.Address = addressWidth
+		self.Depth = 2**addressWidth
+		self.MemoryWidth = memoryWidth
 		self.DataRadix = "HEX"
 		self.Headers = headers
 		self.Data = []
@@ -113,14 +110,13 @@ class Mif(object):
 						_file.write(mifLine.ToString(self.Format).strip()+'\n')
 					elif mifLine.Address is not None:
 						# If there is data and an address
-						_file.write(mifLine.ToString(self.Format)+'\n')
+						_file.write(mifLine.ToString(self.Format, wordWidth=self.Width, memWidth=self.MemoryWidth)+'\n')
 						self.AddAddress(mifLine.GetAddressAsInt())
-						#addressCounter+=1
 					else:
 						mifLine.Address = addressCounter
-						_file.write(mifLine.ToString(self.Format)+'\n')
+						_file.write(mifLine.ToString(self.Format, wordWidth=self.Width, memWidth=self.MemoryWidth)+'\n')
 						self.AddAddress(mifLine.GetAddressAsInt())
-						addressCounter+=1
+						addressCounter += (self.Width / self.MemoryWidth)
 				
 				if self.StuffWith:
 					for a in range(0, self.Depth):
