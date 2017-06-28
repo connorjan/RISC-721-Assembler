@@ -41,7 +41,7 @@ def GetInstructionClass(line, mnemonic, opCode):
 		return DataTransfer(line, mnemonic, opCode)
 	elif (opCode == 0x5 or opCode == 0x6 or opCode == 0x7):
 		return FlowControl(line, mnemonic, opCode)
-	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x16):
+	elif (0x8 <= opCode and opCode <= 0xF) or (0x11 <= opCode and opCode <= 0x16) or (0x1A <= opCode and opCode <= 0x1B):
 		return LogicUnit(line, mnemonic, opCode)
 	elif (opCode == 0x10):
 		return RotateShift(line, mnemonic, opCode)

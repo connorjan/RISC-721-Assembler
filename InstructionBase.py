@@ -219,6 +219,8 @@ InstructionList = {	"LD" 	: 0x00,
 					"FD"	: 0x14,
 					"FTI"	: 0x15,
 					"ITF"	: 0x16,
+					"MUL"	: 0x1A,
+					"DIV"	: 0x1B,
 
 					# Emulated instructions
 					"INC" 	: 0xFF,
