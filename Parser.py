@@ -168,7 +168,7 @@ class Disassembly(object):
 
 			for address, instruction in self.Instructions.iteritems():
 				line = "{:12}{:28}{} {}".format(instruction.Label+':' if instruction.Label else '',
-										 instruction.DisassembledString,
+										 instruction.DisassembledString.lower(),
 										 Assembly.CommentString,
 										 instruction.Line.String)
 				_file.write("{}\n".format(line))
